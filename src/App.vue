@@ -961,11 +961,11 @@
     
                     <!-- 採買區塊 -->
                     <div class="d-grid gap-2 mb-4">
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')" data-bs-dismiss="offcanvas">
                             <span class="text-info fw-bold"><i class="bi bi-clipboard-check me-2"></i>待購買清單</span>
                             <span class="badge bg-info text-dark rounded-pill" v-if="toBuyList.length > 0">{{ toBuyList.length }}</span>
                         </button>
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')" data-bs-dismiss="offcanvas">
                             <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
                             <span class="badge bg-warning text-dark rounded-pill" v-if="cartList.length > 0">{{ cartList.length }}</span>
                         </button>
@@ -975,7 +975,7 @@
     
                     <div class="d-grid gap-2 mb-4">
                          <!-- 新增全區 -->
-                        <button class="btn btn-outline-dark text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('all')">
+                        <button class="btn btn-outline-dark text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('all')" data-bs-dismiss="offcanvas">
                             <span><i class="bi bi-grid-fill me-2"></i>全區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.all.total }}</span>
@@ -984,7 +984,7 @@
                             </div>
                         </button>
                         
-                        <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('cold')">
+                        <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('cold')" data-bs-dismiss="offcanvas">
                             <span><i class="bi bi-snow me-2"></i>冷藏區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.cold.total }}</span>
@@ -992,7 +992,7 @@
                                 <span class="badge bg-danger zone-stat-badge" title="已過期">{{ zoneStats.cold.expired }}</span>
                             </div>
                         </button>
-                        <button class="btn btn-outline-frozen text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('frozen')">
+                        <button class="btn btn-outline-frozen text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('frozen')" data-bs-dismiss="offcanvas">
                             <span><i class="bi bi-box-seam me-2"></i>冷凍區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.frozen.total }}</span>
@@ -1000,7 +1000,7 @@
                                 <span class="badge bg-danger zone-stat-badge">{{ zoneStats.frozen.expired }}</span>
                             </div>
                         </button>
-                        <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('veggie')">
+                        <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('veggie')" data-bs-dismiss="offcanvas">
                             <span><i class="bi bi-flower1 me-2"></i>蔬果區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.veggie.total }}</span>
@@ -1009,7 +1009,7 @@
                             </div>
                         </button>
                         <!-- 新增無庫存區 -->
-                        <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('nostock')">
+                        <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('nostock')" data-bs-dismiss="offcanvas">
                             <span><i class="bi bi-archive me-2"></i>無庫存區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.nostock.total }}</span>
@@ -1018,7 +1018,7 @@
                     </div>
                     
                     <div class="mt-auto">
-                        <button class="btn btn-primary w-100 rounded-pill fw-bold" @click="goSettingsFromSidebar">
+                        <button class="btn btn-primary w-100 rounded-pill fw-bold" @click="goSettingsFromSidebar" data-bs-dismiss="offcanvas">
                             <i class="bi bi-gear me-1"></i> 設定
                         </button>
                         <div class="text-center text-muted small mt-3">v{{ appVersion }}</div>
@@ -1874,28 +1874,12 @@ if (parseInt(targetItem.quantity) > 0) {
                 return stats;
             });
 
-            // 強制清理 Bootstrap 遮罩的工具函數
-            const forceCleanupBackdrop = () => {
-                document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            };
-
             const selectZoneFromSidebar = (zone) => {
-                // 1. 先切換頁面
+                // 原生 Bootstrap data-bs-dismiss 會處理關閉，這裡只需切換狀態
                 filterZone.value = zone;
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
                 goHome();
-
-                // 2. 馬上清理遮罩
-                forceCleanupBackdrop();
-
-                // 3. 收起側邊欄
-                const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
-                inst.hide();
             };
 
             const goToAddPage = () => {
@@ -1946,31 +1930,13 @@ if (parseInt(targetItem.quantity) > 0) {
             };
 
             const goSettingsFromSidebar = () => {
-                // 1. 先切換
                 currentPage.value = "settings";
-                
-                // 2. 清理
-                forceCleanupBackdrop();
-
-                // 3. 收起
-                const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
-                inst.hide();
             };
             
             const goPageFromSidebar = (page) => {
-                // 1. 先切換
                 selectedToBuyIds.value = [];
                 selectedCartIds.value = [];
                 currentPage.value = page;
-
-                // 2. 清理
-                forceCleanupBackdrop();
-
-                // 3. 收起
-                const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
-                inst.hide();
             };
 
             const returnToSidebar = () => {

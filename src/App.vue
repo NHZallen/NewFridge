@@ -595,7 +595,7 @@
                             </div>
                         </div>
                     </div>
-                
+                </div>
                 <!-- 黑色懸浮島嶼底部操作列 (Action Island) -->
                 <div class="action-island-container" v-if="items.filter(i => i.shoppingStatus === 'inCart').length > 0">
                      <div class="action-island">

@@ -1883,18 +1883,19 @@ if (parseInt(targetItem.quantity) > 0) {
             };
 
             const selectZoneFromSidebar = (zone) => {
+                // 1. 先切換頁面
+                filterZone.value = zone;
+                isSelectionMode.value = false;
+                selectedHomeIds.value = [];
+                goHome();
+
+                // 2. 馬上清理遮罩
+                forceCleanupBackdrop();
+
+                // 3. 收起側邊欄
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                 inst.hide();
-                
-                // 等待動畫完成後再切換頁面並強制清理
-                setTimeout(() => {
-                    forceCleanupBackdrop();
-                    filterZone.value = zone;
-                    isSelectionMode.value = false;
-                    selectedHomeIds.value = [];
-                    goHome();
-                }, 300);
             };
 
             const goToAddPage = () => {
@@ -1945,27 +1946,31 @@ if (parseInt(targetItem.quantity) > 0) {
             };
 
             const goSettingsFromSidebar = () => {
+                // 1. 先切換
+                currentPage.value = "settings";
+                
+                // 2. 清理
+                forceCleanupBackdrop();
+
+                // 3. 收起
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                 inst.hide();
-                
-                setTimeout(() => {
-                    forceCleanupBackdrop();
-                    currentPage.value = "settings";
-                }, 300);
             };
             
             const goPageFromSidebar = (page) => {
+                // 1. 先切換
+                selectedToBuyIds.value = [];
+                selectedCartIds.value = [];
+                currentPage.value = page;
+
+                // 2. 清理
+                forceCleanupBackdrop();
+
+                // 3. 收起
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                 inst.hide();
-                
-                setTimeout(() => {
-                    forceCleanupBackdrop();
-                    selectedToBuyIds.value = [];
-                    selectedCartIds.value = [];
-                    currentPage.value = page;
-                }, 300);
             };
 
             const returnToSidebar = () => {

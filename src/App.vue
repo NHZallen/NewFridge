@@ -1087,7 +1087,7 @@ const { compressFile } = useImageCompression();
             // 新增購物車頁面的分類篩選
             const cartFilterZone = ref("all");
             // 新增購物車頁面的佈局模式 ('grid' | 'list')
-            const cartLayoutMode = ref('grid');
+            const cartLayoutMode = ref('list');
 
             const isUploading = ref(false);
             const isCompressing = ref(false);
@@ -1970,6 +1970,8 @@ if (parseInt(targetItem.quantity) > 0) {
             const goSettingsFromSidebar = () => {
                 closeSidebarCompletely();
                 currentPage.value = "settings";
+                // 確保設定頁可以滑動
+                document.body.style.overflow = '';
             };
             
             const goPageFromSidebar = (page) => {

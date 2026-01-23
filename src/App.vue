@@ -1874,8 +1874,34 @@ if (parseInt(targetItem.quantity) > 0) {
                 return stats;
             });
 
+            // 強制關閉側邊欄並清理所有狀態
+            const closeSidebarCompletely = () => {
+                const el = document.getElementById("sidebar");
+                if (!el) return;
+                
+                // 強制移除 show class
+                el.classList.remove('show', 'showing');
+                el.removeAttribute('aria-modal');
+                el.removeAttribute('role');
+                el.setAttribute('aria-hidden', 'true');
+                
+                // 移除所有 backdrop
+                document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                
+                // 清理 body 樣式
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                // 銷毀現有實例
+                const inst = bootstrap.Offcanvas.getInstance(el);
+                if (inst) {
+                    try { inst.dispose(); } catch(e) {}
+                }
+            };
+
             const selectZoneFromSidebar = (zone) => {
-                // 原生 Bootstrap data-bs-dismiss 會處理關閉，這裡只需切換狀態
+                closeSidebarCompletely();
                 filterZone.value = zone;
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
@@ -1930,10 +1956,12 @@ if (parseInt(targetItem.quantity) > 0) {
             };
 
             const goSettingsFromSidebar = () => {
+                closeSidebarCompletely();
                 currentPage.value = "settings";
             };
             
             const goPageFromSidebar = (page) => {
+                closeSidebarCompletely();
                 selectedToBuyIds.value = [];
                 selectedCartIds.value = [];
                 currentPage.value = page;

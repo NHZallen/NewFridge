@@ -594,54 +594,7 @@
                                 </button>
                             </div>
                         </div>
-    
-                        <!-- 模式 2: List Layout (新增樣式) -->
-                        <div v-else class="d-flex flex-column gap-3">
-                            <div v-for="item in cartList" :key="item.id" 
-                                 class="bento-card d-flex align-items-center p-3"
-                                 @click="toggleSelection(selectedCartIds, item.id)">
-                                
-                                <!-- Checkbox -->
-                                <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
-                                    <input type="checkbox" class="form-check-input border-2" 
-                                           :value="item.id" v-model="selectedCartIds"
-                                           style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
-                                </div>
-    
-                                <!-- 圖片 -->
-                                <div class="bento-img-box ms-3 flex-shrink-0" 
-                                     style="width: 64px; height: 64px; border-radius: 12px;"
-                                     :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
-                                     <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                        <i class="bi bi-image fs-5"></i>
-                                     </div>
-                                </div>
-    
-                                <!-- 文字資訊 -->
-                                <div class="ms-3 flex-grow-1 min-w-0">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <span class="zone-tag mb-0 me-2" :class="{
-                                            'zone-cold': item.zone === 'cold',
-                                            'zone-frozen': item.zone === 'frozen',
-                                            'zone-veggie': item.zone === 'veggie'
-                                        }">{{ getZoneName(item.zone) }}</span>
-                                    </div>
-                                    <h3 class="fw-bold fs-6 text-truncate mb-0">{{ item.name }}</h3>
-                                    <small class="text-secondary fw-bold" style="font-size: 0.75rem;">
-                                        數量: {{ item.quantity }}
-                                    </small>
-                                </div>
-    
-                                <!-- 存入按鈕 (List模式專屬) -->
-                                <button class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center ms-2 flex-shrink-0"
-                                        style="width: 42px; height: 42px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                                        @click="startPurchase(item)">
-                                    <span class="material-symbols-outlined fs-5">input</span>
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                </div>
                 
                 <!-- 黑色懸浮島嶼底部操作列 (Action Island) -->
                 <div class="action-island-container" v-if="items.filter(i => i.shoppingStatus === 'inCart').length > 0">

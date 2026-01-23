@@ -1875,13 +1875,17 @@ if (parseInt(targetItem.quantity) > 0) {
             });
 
             const selectZoneFromSidebar = (zone) => {
-                filterZone.value = zone;
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                
+                el.addEventListener('hidden.bs.offcanvas', () => {
+                    filterZone.value = zone;
+                    isSelectionMode.value = false;
+                    selectedHomeIds.value = [];
+                    goHome();
+                }, { once: true });
+                
                 inst.hide();
-                isSelectionMode.value = false;
-                selectedHomeIds.value = [];
-                goHome();
             };
 
             const goToAddPage = () => {
@@ -1934,17 +1938,25 @@ if (parseInt(targetItem.quantity) > 0) {
             const goSettingsFromSidebar = () => {
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                
+                el.addEventListener('hidden.bs.offcanvas', () => {
+                    currentPage.value = "settings";
+                }, { once: true });
+                
                 inst.hide();
-                currentPage.value = "settings";
             };
             
             const goPageFromSidebar = (page) => {
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                
+                el.addEventListener('hidden.bs.offcanvas', () => {
+                    selectedToBuyIds.value = [];
+                    selectedCartIds.value = [];
+                    currentPage.value = page;
+                }, { once: true });
+                
                 inst.hide();
-                selectedToBuyIds.value = [];
-                selectedCartIds.value = [];
-                currentPage.value = page;
             };
 
             const returnToSidebar = () => {

@@ -1,6 +1,5 @@
 ﻿<template>
-  <div class="container py-3">
-    <div id="app" class="container py-3" v-cloak>
+  <div class="container-fluid px-3 py-3" v-cloak>
     
         <!-- 圖片預覽層 -->
         <div v-if="previewImageUrl" class="image-preview-overlay" @click="closePreview">
@@ -956,8 +955,6 @@
         </template>
     
     </div>
-    
-  </div>
 </template>
 
 <script setup>

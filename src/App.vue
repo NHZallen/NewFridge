@@ -543,104 +543,55 @@
                                         style="font-size: 0.85rem;"
                                         @click="cartFilterZone = 'veggie'">蔬果</button>
                             </div>
-    
-                            <!-- 右側：佈局切換按鈕 (新增部分) -->
-                            <div class="d-flex bg-white rounded-pill p-1 shadow-sm border" style="flex-shrink: 0;">
-                                <button class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center p-0 me-1"
-                                        style="width: 32px; height: 32px; transition: 0.2s;"
-                                        :class="cartLayoutMode === 'grid' ? 'bg-dark text-white' : 'text-secondary'"
-                                        @click="cartLayoutMode = 'grid'">
-                                    <span class="material-symbols-outlined fs-6">grid_view</span>
-                                </button>
-                                <button class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center p-0"
-                                        style="width: 32px; height: 32px; transition: 0.2s;"
-                                        :class="cartLayoutMode === 'list' ? 'bg-dark text-white' : 'text-secondary'"
-                                        @click="cartLayoutMode = 'list'">
-                                    <span class="material-symbols-outlined fs-6">view_list</span>
-                                </button>
-                            </div>
                         </div>
     
                         <div v-if="cartList.length === 0" class="text-center text-muted py-5">
                             <p>此分類沒有商品</p>
                         </div>
     
-                        <!-- 模式 1: Bento Grid (原有樣式，加上 v-if="cartLayoutMode === 'grid'") -->
-                        <div v-if="cartLayoutMode === 'grid'" class="bento-grid">
-                            <div v-for="(item, index) in cartList" :key="item.id" 
-                                 class="bento-card"
-                                 :class="{'col-span-2': index % 3 === 0, 'col-span-1': index % 3 !== 0}">
+                        <!-- 列表模式 -->
+                        <div class="d-flex flex-column gap-3">
+                            <div v-for="item in cartList" :key="item.id" 
+                                 class="bento-card d-flex align-items-center p-3"
+                                 @click="toggleSelection(selectedCartIds, item.id)">
                                 
-                                <!-- 多選 checkbox -->
-                                <input type="checkbox" class="form-check-input bento-check" 
-                                       :style="index % 3 === 0 ? { left: '10px', right: 'auto' } : {}"
-                                       :value="item.id" v-model="selectedCartIds" @click.stop>
+                                <!-- Checkbox -->
+                                <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
+                                    <input type="checkbox" class="form-check-input border-2" 
+                                           :value="item.id" v-model="selectedCartIds"
+                                           style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
+                                </div>
     
-                                <!-- 大卡片樣式 -->
-                                <template v-if="index % 3 === 0">
-                                    <div class="bento-img-box img-lg" 
-                                         :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
-                                         <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                            <i class="bi bi-image"></i>
-                                         </div>
-                                    </div>
-                                    <div class="flex-grow-1 min-w-0">
-                                        <div class="d-flex flex-column h-100 justify-content-center">
-                                            <div class="zone-tag" :class="{
-                                                'zone-cold': item.zone === 'cold',
-                                                'zone-frozen': item.zone === 'frozen',
-                                                'zone-veggie': item.zone === 'veggie'
-                                            }">
-                                                {{ getZoneName(item.zone) }}
-                                            </div>
-                                            <h3 class="fw-bold fs-6 text-truncate mb-1">{{ item.name }}</h3>
-                                            <p class="text-secondary small fw-bold mb-0">數量: {{ item.quantity }}</p>
-                                        </div>
-                                    </div>
-                                    <button class="btn-bento-action" @click="startPurchase(item)">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">input</span>
-                                        存入
-                                    </button>
-                                </template>
+                                <!-- 圖片 -->
+                                <div class="bento-img-box ms-3 flex-shrink-0" 
+                                     style="width: 64px; height: 64px; border-radius: 12px;"
+                                     :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
+                                     <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                        <i class="bi bi-image fs-5"></i>
+                                     </div>
+                                </div>
     
-                                <!-- 小卡片樣式 -->
-                                <template v-else>
-                                    <div class="position-absolute top-0 start-0 w-100 h-50 rounded-top" 
-                                         :style="{ background: item.zone==='frozen' ? 'linear-gradient(to bottom, rgba(239,68,68,0.05), transparent)' : 'linear-gradient(to bottom, rgba(59,130,246,0.05), transparent)' }">
-                                    </div>
-    
-                                    <div class="d-flex justify-content-between position-relative z-1 mb-2">
-                                         <div class="zone-tag" :class="{
+                                <!-- 文字資訊 -->
+                                <div class="ms-3 flex-grow-1 min-w-0">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="zone-tag mb-0 me-2" :class="{
                                             'zone-cold': item.zone === 'cold',
                                             'zone-frozen': item.zone === 'frozen',
                                             'zone-veggie': item.zone === 'veggie'
-                                        }">
-                                            <div class="zone-dot" :class="{
-                                                'bg-dot-blue': item.zone === 'cold',
-                                                'bg-dot-red': item.zone === 'frozen',
-                                                'bg-dot-green': item.zone === 'veggie'
-                                            }"></div>
-                                            {{ getZoneName(item.zone) }}
-                                        </div>
+                                        }">{{ getZoneName(item.zone) }}</span>
                                     </div>
+                                    <h3 class="fw-bold fs-6 text-truncate mb-0">{{ item.name }}</h3>
+                                    <small class="text-secondary fw-bold" style="font-size: 0.75rem;">
+                                        數量: {{ item.quantity }}
+                                    </small>
+                                </div>
     
-                                    <div class="bento-img-box img-md" 
-                                         :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
-                                         <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                            <i class="bi bi-image fs-4"></i>
-                                         </div>
-                                    </div>
-    
-                                    <div class="position-relative z-1 d-flex flex-column gap-2 mt-2">
-                                        <div>
-                                            <h3 class="fw-bold fs-6 lh-sm mb-1 text-truncate">{{ item.name }}</h3>
-                                            <p class="text-secondary small fw-bold mb-0" style="font-size: 10px;">數量: {{ item.quantity }}</p>
-                                        </div>
-                                        <button class="btn-bento-action py-1" @click="startPurchase(item)">
-                                            存入
-                                        </button>
-                                    </div>
-                                </template>
+                                <!-- 存入按鈕 -->
+                                <button class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center ms-2 flex-shrink-0"
+                                        style="width: 42px; height: 42px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
+                                        @click.stop="startPurchase(item)">
+                                    <span class="material-symbols-outlined fs-5">input</span>
+                                </button>
                             </div>
                         </div>
     
@@ -860,15 +811,17 @@
                         <div class="accordion" id="updateAccordion">
                             <div class="accordion-item" v-for="log in visibleUpdateLogs" :key="log.version">
                                 <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            :data-bs-target="'#v'+log.version.replaceAll('.','_')">
+                                    <button class="accordion-button" 
+                                            :class="{ collapsed: expandedVersion !== log.version }" 
+                                            type="button" 
+                                            @click="expandedVersion = expandedVersion === log.version ? null : log.version">
                                         <div class="d-flex flex-column">
                                             <div class="fw-bold">v{{ log.version }}　{{ log.title }}</div>
                                             <div class="small text-muted">{{ log.date }}</div>
                                         </div>
                                     </button>
                                 </h2>
-                                <div class="accordion-collapse collapse" :id="'v'+log.version.replaceAll('.','_')">
+                                <div class="accordion-collapse" :class="{ show: expandedVersion === log.version, collapse: expandedVersion !== log.version }">
                                     <div class="accordion-body">
                                         <ul class="mb-0">
                                             <li v-for="c in log.changes" :key="c">{{ c }}</li>
@@ -963,11 +916,11 @@
     
                     <!-- 採買區塊 -->
                     <div class="d-grid gap-2 mb-4">
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')" data-bs-dismiss="offcanvas">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')">
                             <span class="text-info fw-bold"><i class="bi bi-clipboard-check me-2"></i>待購買清單</span>
                             <span class="badge bg-info text-dark rounded-pill" v-if="toBuyList.length > 0">{{ toBuyList.length }}</span>
                         </button>
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')" data-bs-dismiss="offcanvas">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')">
                             <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
                             <span class="badge bg-warning text-dark rounded-pill" v-if="cartList.length > 0">{{ cartList.length }}</span>
                         </button>
@@ -1135,6 +1088,7 @@ const { compressFile } = useImageCompression();
 
             // --- 新增：設定頁面歷史紀錄顯示控制 ---
             const showAllUpdates = ref(false);
+            const expandedVersion = ref(null);
             const visibleUpdateLogs = computed(() => {
                 if (showAllUpdates.value) return updateLogs.value;
                 return updateLogs.value.slice(0, 3);

@@ -416,13 +416,13 @@
                 <div class="d-flex flex-column gap-3">
                     <div v-for="item in toBuyList" :key="item.id" 
                          class="bento-card d-flex align-items-center p-3"
-                         @click="item.checked = !item.checked"> <!-- 點擊卡片任何地方都可以勾選(需配合下方邏輯) -->
+                         @click="toggleSelection(selectedToBuyIds, item.id)"> <!-- 點擊卡片任何地方都可以勾選 -->
                         
                         <!-- 1. Checkbox (改為左側顯示，符合清單邏輯) -->
                         <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
                             <input type="checkbox" class="form-check-input border-2" 
                                    :value="item.id" v-model="selectedToBuyIds"
-                                   style="cursor: pointer; border-color: #cbd5e1;">
+                                   style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
                         </div>
     
                         <!-- 2. 圖片 (圓角方形) -->
@@ -573,7 +573,8 @@
                                 
                                 <!-- 多選 checkbox -->
                                 <input type="checkbox" class="form-check-input bento-check" 
-                                       :value="item.id" v-model="selectedCartIds">
+                                       :style="index % 3 === 0 ? { left: '10px', right: 'auto' } : {}"
+                                       :value="item.id" v-model="selectedCartIds" @click.stop>
     
                                 <!-- 大卡片樣式 -->
                                 <template v-if="index % 3 === 0">
@@ -646,13 +647,14 @@
                         <!-- 模式 2: List Layout (新增樣式) -->
                         <div v-else class="d-flex flex-column gap-3">
                             <div v-for="item in cartList" :key="item.id" 
-                                 class="bento-card d-flex align-items-center p-3">
+                                 class="bento-card d-flex align-items-center p-3"
+                                 @click="toggleSelection(selectedCartIds, item.id)">
                                 
                                 <!-- Checkbox -->
                                 <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
                                     <input type="checkbox" class="form-check-input border-2" 
                                            :value="item.id" v-model="selectedCartIds"
-                                           style="cursor: pointer; border-color: #cbd5e1;">
+                                           style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
                                 </div>
     
                                 <!-- 圖片 -->
@@ -866,7 +868,7 @@
                                         </div>
                                     </button>
                                 </h2>
-                                <div class="accordion-collapse collapse" :id="'v'+log.version.replaceAll('.','_')" data-bs-parent="#updateAccordion">
+                                <div class="accordion-collapse collapse" :id="'v'+log.version.replaceAll('.','_')">
                                     <div class="accordion-body">
                                         <ul class="mb-0">
                                             <li v-for="c in log.changes" :key="c">{{ c }}</li>
@@ -1873,6 +1875,16 @@ if (parseInt(targetItem.quantity) > 0) {
                 });
                 return stats;
             });
+
+            // 通用列表勾選切換
+            const toggleSelection = (list, id) => {
+                const idx = list.indexOf(id);
+                if (idx > -1) {
+                    list.splice(idx, 1);
+                } else {
+                    list.push(id);
+                }
+            };
 
             // 強制關閉側邊欄並清理所有狀態
             const closeSidebarCompletely = () => {

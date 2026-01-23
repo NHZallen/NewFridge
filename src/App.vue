@@ -1817,6 +1817,19 @@ if (parseInt(targetItem.quantity) > 0) {
                 if (inst) {
                     try { inst.dispose(); } catch(e) {}
                 }
+
+                // 強制重置所有並移除各種可能的鎖定
+                setTimeout(() => {
+                    document.body.style.overflow = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open');
+                    document.body.removeAttribute('data-bs-overflow');
+                    
+                    document.documentElement.style.overflow = '';
+                    
+                    // 再次確保 backdrop 移除
+                    document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                }, 100);
             };
 
             const selectZoneFromSidebar = (zone) => {
@@ -1877,8 +1890,8 @@ if (parseInt(targetItem.quantity) > 0) {
             const goSettingsFromSidebar = () => {
                 closeSidebarCompletely();
                 currentPage.value = "settings";
-                // 確保設定頁可以滑動
-                document.body.style.overflow = '';
+                // 額外強制解鎖
+                document.body.style.overflow = 'auto';
             };
             
             const goPageFromSidebar = (page) => {

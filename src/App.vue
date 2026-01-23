@@ -1874,18 +1874,27 @@ if (parseInt(targetItem.quantity) > 0) {
                 return stats;
             });
 
+            // 強制清理 Bootstrap 遮罩的工具函數
+            const forceCleanupBackdrop = () => {
+                document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            };
+
             const selectZoneFromSidebar = (zone) => {
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                inst.hide();
                 
-                el.addEventListener('hidden.bs.offcanvas', () => {
+                // 等待動畫完成後再切換頁面並強制清理
+                setTimeout(() => {
+                    forceCleanupBackdrop();
                     filterZone.value = zone;
                     isSelectionMode.value = false;
                     selectedHomeIds.value = [];
                     goHome();
-                }, { once: true });
-                
-                inst.hide();
+                }, 300);
             };
 
             const goToAddPage = () => {
@@ -1938,25 +1947,25 @@ if (parseInt(targetItem.quantity) > 0) {
             const goSettingsFromSidebar = () => {
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
-                
-                el.addEventListener('hidden.bs.offcanvas', () => {
-                    currentPage.value = "settings";
-                }, { once: true });
-                
                 inst.hide();
+                
+                setTimeout(() => {
+                    forceCleanupBackdrop();
+                    currentPage.value = "settings";
+                }, 300);
             };
             
             const goPageFromSidebar = (page) => {
                 const el = document.getElementById("sidebar");
                 const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                inst.hide();
                 
-                el.addEventListener('hidden.bs.offcanvas', () => {
+                setTimeout(() => {
+                    forceCleanupBackdrop();
                     selectedToBuyIds.value = [];
                     selectedCartIds.value = [];
                     currentPage.value = page;
-                }, { once: true });
-                
-                inst.hide();
+                }, 300);
             };
 
             const returnToSidebar = () => {

@@ -1062,6 +1062,8 @@ import { getTodayStr, getDays, addDaysToDate, parseLocalDate } from './utils/dat
 import { useImageCompression } from './composables/useImageCompression'
 import * as bootstrap from 'bootstrap'
 
+const appVersion = APP_VERSION;
+
 // Globals
 let appFirebase;
 let db;
@@ -1875,8 +1877,8 @@ if (parseInt(targetItem.quantity) > 0) {
             const selectZoneFromSidebar = (zone) => {
                 filterZone.value = zone;
                 const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getInstance(el);
-                if (inst) inst.hide();
+                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                inst.hide();
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
                 goHome();
@@ -1931,15 +1933,15 @@ if (parseInt(targetItem.quantity) > 0) {
 
             const goSettingsFromSidebar = () => {
                 const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getInstance(el);
-                if (inst) inst.hide();
+                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                inst.hide();
                 currentPage.value = "settings";
             };
             
             const goPageFromSidebar = (page) => {
                 const el = document.getElementById("sidebar");
-                const inst = bootstrap.Offcanvas.getInstance(el);
-                if (inst) inst.hide();
+                const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                inst.hide();
                 selectedToBuyIds.value = [];
                 selectedCartIds.value = [];
                 currentPage.value = page;
@@ -1949,7 +1951,7 @@ if (parseInt(targetItem.quantity) > 0) {
                 currentPage.value = 'home';
                 setTimeout(() => {
                     const el = document.getElementById("sidebar");
-                    const inst = new bootstrap.Offcanvas(el);
+                    const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                     inst.show();
                 }, 50);
             };

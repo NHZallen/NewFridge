@@ -319,7 +319,7 @@
             </div>
     
             <!-- 左側邊欄 -->
-            <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel">
+            <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel" data-bs-backdrop="true" data-bs-scroll="false">
                 <div class="offcanvas-header">
                     <h5 class="offcanvas-title fw-bold" id="sidebarLabel"><i class="bi bi-snow2 text-primary"></i> 功能選單</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
@@ -334,11 +334,11 @@
     
                     <!-- 採買區塊 -->
                     <div class="d-grid gap-2 mb-4">
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')" data-bs-dismiss="offcanvas">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')">
                             <span class="text-info fw-bold"><i class="bi bi-clipboard-check me-2"></i>待購買清單</span>
                             <span class="badge bg-info text-dark rounded-pill" v-if="toBuyList.length > 0">{{ toBuyList.length }}</span>
                         </button>
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')" data-bs-dismiss="offcanvas">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')">
                             <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
                             <span class="badge bg-warning text-dark rounded-pill" v-if="cartList.length > 0">{{ cartList.length }}</span>
                         </button>
@@ -348,7 +348,7 @@
     
                     <div class="d-grid gap-2 mb-4">
                          <!-- 新增全區 -->
-                        <button class="btn btn-outline-dark text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('all')" data-bs-dismiss="offcanvas">
+                        <button class="btn btn-outline-dark text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('all')">
                             <span><i class="bi bi-grid-fill me-2"></i>全區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.all.total }}</span>
@@ -357,7 +357,7 @@
                             </div>
                         </button>
                         
-                        <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('cold')" data-bs-dismiss="offcanvas">
+                        <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('cold')">
                             <span><i class="bi bi-snow me-2"></i>冷藏區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.cold.total }}</span>
@@ -365,7 +365,7 @@
                                 <span class="badge bg-danger zone-stat-badge" title="已過期">{{ zoneStats.cold.expired }}</span>
                             </div>
                         </button>
-                        <button class="btn btn-outline-frozen text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('frozen')" data-bs-dismiss="offcanvas">
+                        <button class="btn btn-outline-frozen text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('frozen')">
                             <span><i class="bi bi-box-seam me-2"></i>冷凍區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.frozen.total }}</span>
@@ -373,7 +373,7 @@
                                 <span class="badge bg-danger zone-stat-badge">{{ zoneStats.frozen.expired }}</span>
                             </div>
                         </button>
-                        <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('veggie')" data-bs-dismiss="offcanvas">
+                        <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('veggie')">
                             <span><i class="bi bi-flower1 me-2"></i>蔬果區</span>
                             <div class="d-flex gap-1">
                                 <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.veggie.total }}</span>
@@ -792,6 +792,21 @@ const { compressFile } = useImageCompression();
                 window.addEventListener('scroll', () => {
                     showScrollTop.value = window.scrollY > 300;
                 });
+
+                // 強制清理 backdrop - 解決 Bootstrap Offcanvas backdrop 殘留問題
+                const sidebarEl = document.getElementById('sidebar');
+                if (sidebarEl) {
+                    sidebarEl.addEventListener('hidden.bs.offcanvas', () => {
+                        // 立即清理所有可能殘留的 backdrop
+                        const backdrops = document.querySelectorAll('.offcanvas-backdrop');
+                        backdrops.forEach(backdrop => backdrop.remove());
+                        
+                        // 確保 body 解鎖
+                        document.body.classList.remove('modal-open');
+                        document.body.style.removeProperty('overflow');
+                        document.body.style.removeProperty('padding-right');
+                    });
+                }
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {
@@ -1024,7 +1039,40 @@ const { compressFile } = useImageCompression();
 
             // 強制關閉側邊欄並清理所有狀態
             // 強制關閉側邊欄並清理所有狀態
-            const selectZoneFromSidebar = (zone) => {
+            // 封裝側邊欄關閉邏輯為 Promise，確保動話完成後再執行後續
+            const closeSidebarWithPromise = () => {
+                return new Promise((resolve) => {
+                    const el = document.getElementById("sidebar");
+                    if (!el) {
+                        resolve();
+                        return;
+                    }
+
+                    const inst = bootstrap.Offcanvas.getInstance(el);
+                    if (!inst) {
+                        // 如果沒有實例但 DOM 在，手動清理
+                        el.classList.remove('show');
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+                        document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                        resolve();
+                        return;
+                    }
+
+                    // 監聽一次性關閉事件
+                    const onHidden = () => {
+                        el.removeEventListener('hidden.bs.offcanvas', onHidden);
+                        resolve();
+                    };
+                    el.addEventListener('hidden.bs.offcanvas', onHidden);
+                    
+                    inst.hide();
+                });
+            };
+
+            const selectZoneFromSidebar = async (zone) => {
+                await closeSidebarWithPromise();
                 filterZone.value = zone;
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
@@ -1079,10 +1127,12 @@ const { compressFile } = useImageCompression();
             };
 
             const goSettingsFromSidebar = () => {
+                // 設定頁面不需要 await，直接跳轉體驗較好，或者也可以加 await
                 currentPage.value = "settings";
             };
             
-            const goPageFromSidebar = (page) => {
+            const goPageFromSidebar = async (page) => {
+                await closeSidebarWithPromise();
                 currentPage.value = page;
             };
 
@@ -1104,9 +1154,11 @@ const { compressFile } = useImageCompression();
             };
 
             const handleNavigateFromCart = (page) => {
-                if (page === 'sidebar') {
+                 if (page === 'sidebar') {
                     returnToSidebar();
-                }
+                 } else if (page === 'to-buy') {
+                    currentPage.value = 'to-buy-list';
+                 }
             };
 
             const toggleSelectionMode = () => {

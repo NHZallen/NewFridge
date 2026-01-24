@@ -18,49 +18,20 @@
             <div class="card w-100 border-0 shadow-sm" style="max-width: 500px;">
                 <div class="card-body">
                     <form @submit.prevent="saveInitialConfig">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">1. Firebase 設定碼</label>
+                            <textarea class="form-control font-monospace small" rows="5" v-model="inputConfigStr" placeholder='請貼上 const firebaseConfig = { ... }' required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">2. 您的稱呼 (家庭成員名稱)</label>
+                            <input type="text" class="form-control" v-model="inputUserName" placeholder="例如：爸爸、媽媽" required>
+                        </div>
                         
-                        <!-- 手動輸入設定 (只有在沒有系統預設時顯示) -->
-                        <div v-if="!hasSystemConfig">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">1. Firebase 設定碼</label>
-                                <textarea class="form-control font-monospace small" rows="5" v-model="inputConfigStr" placeholder='請貼上 const firebaseConfig = { ... }' required></textarea>
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label fw-bold">2. 您的稱呼 (家庭成員名稱)</label>
-                                <input type="text" class="form-control" v-model="inputUserName" placeholder="例如：爸爸、媽媽" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" :disabled="isSettingUp">
-                                {{ isSettingUp ? '處理中...' : '開始使用' }}
-                            </button>
-                            <div class="d-flex align-items-center my-3">
-                                <hr class="flex-grow-1">
-                                <span class="mx-2 text-muted small">或</span>
-                                <hr class="flex-grow-1">
-                            </div>
-                        </div>
-
-                        <!-- 系統預設設定提示 -->
-                        <div v-else class="alert alert-success d-flex align-items-center mb-4">
-                            <i class="bi bi-shield-check fs-4 me-3"></i>
-                            <div>
-                                <div class="fw-bold">已載入系統設定</div>
-                                <div class="small">您可以直接開始使用，無需手動設定。</div>
-                            </div>
-                        </div>
-
                         <div v-if="setupError" class="alert alert-danger py-2 mb-3">{{ setupError }}</div>
 
-                        <button type="button" class="btn btn-outline-dark w-100 rounded-pill py-2 fw-bold d-flex align-items-center justify-content-center gap-2" 
-                                @click="setupWithGoogle" :disabled="isSettingUp">
-                            <i class="bi bi-google"></i> 使用 Google 帳號登入
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" :disabled="isSettingUp">
+                            {{ isSettingUp ? '處理中...' : '開始使用' }}
                         </button>
-                        
-                        <div v-if="hasSystemConfig" class="text-center mt-3">
-                            <button type="button" class="btn btn-link text-muted small text-decoration-none" @click="inputConfigStr = 'manual'; hasSystemConfig = false">
-                                手動輸入設定碼
-                            </button>
-                        </div>
-
                     </form>
                 </div>
             </div>
@@ -505,7 +476,6 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { initializeApp } from 'firebase/app'
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
-import { firebaseConfig as codeConfig } from './firebaseConfig.js'
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION, ZONE_COLORS as ZONE_COLORS_CONST, ZONE_NAMES, LONG_PRESS_DURATION } from './utils/constants'
 import { getTodayStr, getDays, addDaysToDate, parseLocalDate } from './utils/dateUtils'
@@ -536,34 +506,6 @@ const { compressFile } = useImageCompression();
             const setupError = ref("");
             // Auth State
             const currentUser = ref(null);
-
-            // 環境變數設定檢測
-            const envConfig = {
-                apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-                authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-                projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-                storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-                messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-                appId: import.meta.env.VITE_FIREBASE_APP_ID
-            };
-            
-            // 判斷是否有有效的設定 (Code Config > Env Config)
-            const getEffectiveConfig = () => {
-                // 1. 優先檢查程式碼設定 (firebaseConfig.js)
-                if (codeConfig && codeConfig.apiKey && codeConfig.projectId) {
-                    return codeConfig;
-                }
-                // 2. 檢查環境變數
-                if (envConfig.apiKey && envConfig.projectId) {
-                    return envConfig;
-                }
-                return null;
-            };
-
-            const systemConfig = getEffectiveConfig();
-            
-            // 判斷是否偵測到系統設定
-            const hasSystemConfig = ref(!!systemConfig);
 
             const items = ref([]);
 // ... (lines 472-575 match original context, skipping for brevity in replacement search) ... 
@@ -753,105 +695,6 @@ const { compressFile } = useImageCompression();
                     showToast("已解除綁定");
                 } catch (error) {
                     console.error("SignOut Error", error);
-                }
-            };
-
-            // 初始設定時使用 Google 登入
-            const setupWithGoogle = async () => {
-                setupError.value = "";
-                let configObj = null;
-
-                isSettingUp.value = true;
-
-                try {
-                    // 1. 取得設定
-                    if (hasSystemConfig.value) {
-                         configObj = systemConfig;
-                    } else {
-                        // 手動輸入模式
-                        if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
-                            throw new Error("請先貼上 Firebase 設定碼");
-                        }
-                        
-                        let cleanStr = inputConfigStr.value.trim();
-                        cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '');
-                        cleanStr = cleanStr.replace(/;$/, '');
-                        configObj = (new Function(`return ${cleanStr}`))();
-                    }
-
-                    if (!configObj || !configObj.projectId) throw new Error("無效的設定內容");
-
-                    // 2. 初始化 Firebase (如果尚未初始化)
-                    if (!appFirebase) {
-                        try {
-                            appFirebase = initializeApp(configObj);
-                            db = getFirestore(appFirebase);
-                            auth = getAuth(appFirebase);
-                            
-                            // 確保監聽器掛載
-                            onAuthStateChanged(auth, (user) => {
-                                currentUser.value = user;
-                            });
-                        } catch(initErr) {
-                           // 忽略重複初始化錯誤
-                           if (getAuth(appFirebase)) {
-                               auth = getAuth(appFirebase);
-                           }
-                        }
-                    }
-
-                    // 3. 呼叫 Google 登入
-                    const provider = new GoogleAuthProvider();
-                    const result = await signInWithPopup(auth, provider);
-                    const user = result.user;
-
-                    // 4. 使用 Google 資料作為使用者名稱
-                    const googleName = user.displayName || user.email.split('@')[0];
-                    currentUserName.value = googleName;
-
-                    // --- 新增：如果是使用系統預設設定，檢查是否為合法成員 ---
-                    if (hasSystemConfig.value) {
-                         const settingsRef = doc(db, "family_metadata", "general");
-                         const docSnap = await getDoc(settingsRef);
-                         
-                         // 如果資料庫已經有家庭設定 (不是全新的空白庫)
-                         if (docSnap.exists()) {
-                             const data = docSnap.data();
-                             const members = data.members || [];
-                             
-                             // 檢查此人是否在成員名單中
-                             if (!members.includes(googleName)) {
-                                 // 不是成員 -> 踢出
-                                 await signOut(auth);
-                                 alert(`抱歉，您 (${googleName}) 不是此預設冰箱資料庫的成員。\n\n系統將切換至手動模式，請輸入您自己的 Firebase 設定碼以建立新的冰箱。`);
-                                 
-                                 // 切換回手動模式
-                                 hasSystemConfig.value = false;
-                                 inputConfigStr.value = ""; // 清空以免混淆
-                                 isSettingUp.value = false;
-                                 return; // 終止流程
-                             }
-                         }
-                    }
-                    // ---------------------------------------------------
-
-                    // 5. 儲存設定 (如果是環境變數，存個標記即可，但為了兼容舊邏輯，還是存完整的)
-                    localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj));
-                    localStorage.setItem("fridge_user_name", googleName);
-
-                    // 6. 進入 App
-                    isConfigured.value = true;
-                    isLoading.value = true;
-                    await checkAndJoinFamily(googleName);
-                    startListeners();
-                    
-                    showToast(`歡迎回來，${googleName}`);
-
-                } catch (e) {
-                    console.error(e);
-                    setupError.value = "登入失敗：" + e.message;
-                } finally {
-                    isSettingUp.value = false;
                 }
             };
 

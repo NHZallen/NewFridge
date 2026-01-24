@@ -1042,44 +1042,59 @@ const { compressFile } = useImageCompression();
                 }
             };
 
-            // 強制關閉側邊欄並清理所有狀態
-            // 封裝側邊欄關閉邏輯為 Promise，確保動畫完成後再執行後續
-            const closeSidebarWithPromise = () => {
-                return new Promise((resolve) => {
-                    const el = document.getElementById("sidebar");
-                    if (!el) {
-                        cleanupBackdrops();
-                        resolve();
-                        return;
-                    }
+            // 強力清理所有殘留 backdrop 與鎖定狀態
+            const cleanupBackdrops = () => {
+                // 1. 移除所有 backdrop 元素
+                document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+                
+                // 2. 解鎖 body
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
 
-                    const inst = bootstrap.Offcanvas.getInstance(el);
-                    if (!inst) {
-                        // 如果沒有實例但 DOM 在，手動清理
-                        el.classList.remove('show');
-                        cleanupBackdrops();
-                        resolve();
-                        return;
+                // 3. 確保側邊欄實例狀態正確 (如果 DOM 還在)
+                const sidebarEl = document.getElementById('sidebar');
+                if (sidebarEl) {
+                    const inst = bootstrap.Offcanvas.getInstance(sidebarEl);
+                    if (inst) {
+                        try {
+                            inst.hide();
+                        } catch (e) {
+                            // 忽略隱藏錯誤
+                        }
                     }
-
-                    // 監聽一次性關閉事件
-                    const onHidden = () => {
-                        el.removeEventListener('hidden.bs.offcanvas', onHidden);
-                        cleanupBackdrops(); // 雙重保險
-                        resolve();
-                    };
-                    el.addEventListener('hidden.bs.offcanvas', onHidden);
-                    
-                    inst.hide();
-                });
+                    sidebarEl.classList.remove('show');
+                    sidebarEl.setAttribute('aria-hidden', 'true');
+                    sidebarEl.removeAttribute('aria-modal');
+                    sidebarEl.removeAttribute('role');
+                }
             };
 
-            const selectZoneFromSidebar = async (zone) => {
-                await closeSidebarWithPromise();
+            // 全局監聽頁面切換，一旦切換立即執行清理
+            watch(currentPage, () => {
+                // 立即清理
+                cleanupBackdrops();
+                // 稍微延遲再清理一次，防止動畫殘留
+                setTimeout(cleanupBackdrops, 350);
+            });
+
+            // 確保每次打開側邊欄時，狀態是乾淨的
+            const openSidebarSafe = () => {
+                const el = document.getElementById("sidebar");
+                if(el) {
+                    const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                    inst.show();
+                }
+            };
+
+            const selectZoneFromSidebar = (zone) => {
+                // 不等待動畫，直接切換狀態，依賴 watcher 清理
                 filterZone.value = zone;
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
                 goHome();
+                // 手動觸發一次清理確保萬一
+                setTimeout(cleanupBackdrops, 100); 
             };
 
             const goToAddPage = () => {
@@ -1130,29 +1145,21 @@ const { compressFile } = useImageCompression();
             };
 
             const goSettingsFromSidebar = () => {
-                // 設定頁面不需要 await，直接跳轉體驗較好，或者也可以加 await
                 currentPage.value = "settings";
+                setTimeout(cleanupBackdrops, 100);
             };
             
-            const goPageFromSidebar = async (page) => {
-                await closeSidebarWithPromise();
+            const goPageFromSidebar = (page) => {
                 currentPage.value = page;
+                setTimeout(cleanupBackdrops, 100);
             };
 
             const returnToSidebar = () => {
                 currentPage.value = 'home';
-                // 使用 nextTick 確保 Vue 渲染完成後再開啟側邊欄
                 nextTick(() => {
                     setTimeout(() => {
-                        const el = document.getElementById("sidebar");
-                        if (!el) return;
-                        // 優先使用現有實例，避免創建重複實例
-                        let inst = bootstrap.Offcanvas.getInstance(el);
-                        if (!inst) {
-                            inst = new bootstrap.Offcanvas(el);
-                        }
-                        inst.show();
-                    }, 150); // 增加延遲確保頁面完全渲染
+                        openSidebarSafe();
+                    }, 50);
                 });
             };
 

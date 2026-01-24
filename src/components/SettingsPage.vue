@@ -41,6 +41,25 @@
       </div>
     </div>
 
+    <!-- 推播通知設定 -->
+    <div class="card section-card mb-3">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-bell-fill text-warning"></i>
+          <div class="fw-bold">推播通知設定</div>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label small text-muted">VAPID 公鑰 (Web Push Certificate)</label>
+          <input type="text" class="form-control form-control-sm" v-model="vapidKeyTemp" placeholder="請輸入 VAPID Key">
+        </div>
+
+        <button class="btn btn-outline-primary w-100 rounded-pill" @click="handleEnableNotifications">
+          <i class="bi bi-broadcast"></i> 啟用/更新通知功能
+        </button>
+      </div>
+    </div>
+
     <!-- 家庭設定 -->
     <div class="card section-card mb-3">
       <div class="card-body">
@@ -202,10 +221,12 @@ const emit = defineEmits([
   'save-family-name',
   'edit-user-name',
   'reset-app',
-  'update:settings'
+  'update:settings',
+  'enable-notifications'
 ])
 
 // 內部狀態
+const vapidKeyTemp = ref(localStorage.getItem('fridge_vapid_key') || '')
 const isEditingFamilyName = ref(false)
 const editFamilyNameTemp = ref('')
 const showAllUpdates = ref(false)
@@ -225,5 +246,15 @@ const saveFamilyName = () => {
   if (!editFamilyNameTemp.value.trim()) return
   emit('save-family-name', editFamilyNameTemp.value.trim())
   isEditingFamilyName.value = false
+}
+
+const handleEnableNotifications = () => {
+    if (!vapidKeyTemp.value.trim()) {
+        alert('請輸入 VAPID Key');
+        return;
+    }
+    const key = vapidKeyTemp.value.trim()
+    localStorage.setItem('fridge_vapid_key', key);
+    emit('enable-notifications', key);
 }
 </script>

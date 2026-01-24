@@ -96,6 +96,7 @@
         @show-update-modal="showUpdateModal(true)"
         @reset-app="resetApp"
         @update:settings="handleSettingsChange"
+        @enable-notifications="enableNotifications"
       />
 
       <!-- UPDATE INFO PAGE -->
@@ -425,6 +426,25 @@ const unlinkGoogleAccount = async () => {
     showToast("已解除綁定")
   } catch (error) {
     console.error("SignOut Error", error)
+  }
+}
+
+// Push Notifications
+import { setupFCM } from './utils/pushNotifications'
+
+const enableNotifications = async (vapidKey) => {
+  if (!appFirebase || !db) return
+  
+  try {
+    const token = await setupFCM(appFirebase, db, currentUserName.value, vapidKey)
+    if (token) {
+      showToast("通知功能已啟用！")
+    } else {
+      showToast("無法啟用通知，請檢查權限或 Key")
+    }
+  } catch (e) {
+    console.error(e)
+    alert("啟用失敗：" + e.message)
   }
 }
 

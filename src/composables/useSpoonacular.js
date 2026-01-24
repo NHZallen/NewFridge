@@ -31,19 +31,32 @@ export function useSpoonacular() {
                 return
             }
 
-            // number=12: 回傳 12 筆
-            // ranking=1: 優先顯示能最大化利用現有食材的食譜 (Minimize missing ingredients)
-            // ignorePantry=true: 假設家中沒有常備品 (油鹽等)，更嚴格匹配 (看需求，通常設 true 比較準確反應 "能煮什麼")
-            const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientNames}&number=12&ranking=1&ignorePantry=true&apiKey=${API_KEY}`
+            // 改用 APILayer 的 complexSearch Endpoint
+            // includeIngredients: 指定食材
+            // fillIngredients=true: 回傳食材詳細資訊 (used/missed)
+            // sort=max-used-ingredients: 優先顯示能用最多現有食材的
+            // number=12: 回傳數量
+            const url = `https://api.apilayer.com/spoonacular/recipes/complexSearch?includeIngredients=${ingredientNames}&fillIngredients=true&sort=max-used-ingredients&number=12&ignorePantry=true`
 
-            const res = await fetch(url)
+            const res = await fetch(url, {
+                headers: {
+                    'apikey': API_KEY
+                }
+            })
 
             if (!res.ok) {
                 const errText = await res.text()
                 throw new Error(`API Error: ${res.status} ${res.statusText} - ${errText}`)
             }
 
-            recipes.value = await res.json()
+            const data = await res.json()
+            // complexSearch 回傳 { results: [...] }
+            // 且為了兼容 UI，確保 usedIngredientCount 等欄位存在
+            recipes.value = (data.results || []).map(r => ({
+                ...r,
+                usedIngredientCount: r.usedIngredientCount || (r.usedIngredients || []).length,
+                missedIngredientCount: r.missedIngredientCount || (r.missedIngredients || []).length
+            }))
         } catch (err) {
             console.error('Spoonacular API Error:', err)
             error.value = `無法取得食譜: ${err.message}`

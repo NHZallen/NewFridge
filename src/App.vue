@@ -169,7 +169,7 @@ import { APP_VERSION } from './utils/constants'
 import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
-import * as bootstrap from 'bootstrap'
+// Bootstrap is now handled via useBootstrap composable
 
 // Components
 import SetupScreen from './components/SetupScreen.vue'
@@ -181,6 +181,20 @@ import TakeOutPage from './components/TakeOutPage.vue'
 import SettingsPage from './components/SettingsPage.vue'
 import UpdateInfoPage from './components/UpdateInfoPage.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
+
+// Composables
+import { useBootstrap } from './composables/useBootstrap'
+
+const { 
+  toastMessage, 
+  toastEl, 
+  showToast, 
+  showModal, 
+  hideModal, 
+  toggleOffcanvas, 
+  showOffcanvas,
+  cleanupSidebar 
+} = useBootstrap()
 
 const appVersion = APP_VERSION
 
@@ -252,21 +266,9 @@ const updateLogs = ref(UPDATE_LOGS)
 const latestVersion = ref(LATEST_VERSION)
 const latestLog = computed(() => updateLogs.value.find(l => l.version === latestVersion.value) || updateLogs.value[0] || null)
 
-// Toast
-const toastMessage = ref("")
-const toastEl = ref(null)
-
 // ==================== 方法 ====================
 
-const showToast = (msg) => {
-  toastMessage.value = msg
-  nextTick(() => {
-    if (toastEl.value) {
-      const t = bootstrap.Toast.getOrCreateInstance(toastEl.value)
-      t.show()
-    }
-  })
-}
+// showToast logic is now handled by useBootstrap
 
 // Firebase 初始化
 const initFirebase = async (config, userName) => {
@@ -437,15 +439,14 @@ const saveFamilyName = async (newName) => {
 const startEditUserName = (name) => {
   editUserNameTemp.value = name
   nameEditError.value = ""
-  const el = new bootstrap.Modal(document.getElementById('editNameModal'))
-  el.show()
+  showModal('editNameModal')
 }
 
 const confirmEditUserName = async () => {
   const newName = editUserNameTemp.value.trim()
   const oldName = currentUserName.value
   if (!newName) { nameEditError.value = "名稱不能為空"; return }
-  if (newName === oldName) { bootstrap.Modal.getInstance(document.getElementById('editNameModal')).hide(); return }
+  if (newName === oldName) { hideModal('editNameModal'); return }
   
   try {
     const updatedMembers = familySettings.value.members.filter(m => m !== oldName)
@@ -456,7 +457,7 @@ const confirmEditUserName = async () => {
     })
     currentUserName.value = newName
     localStorage.setItem("fridge_user_name", newName)
-    bootstrap.Modal.getInstance(document.getElementById('editNameModal')).hide()
+    hideModal('editNameModal')
   } catch (e) { nameEditError.value = "更新失敗" }
 }
 
@@ -520,65 +521,33 @@ const closeUpdatePage = () => {
 }
 
 // 導航
-const cleanupBackdrops = () => {
-  document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove())
-  document.body.classList.remove('modal-open')
-  document.body.style.removeProperty('overflow')
-  document.body.style.removeProperty('padding-right')
-
-  const sidebarEl = document.getElementById('sidebar')
-  if (sidebarEl) {
-    const inst = bootstrap.Offcanvas.getInstance(sidebarEl)
-    if (inst) {
-      try { inst.hide() } catch (e) {}
-    }
-    sidebarEl.classList.remove('show')
-    sidebarEl.setAttribute('aria-hidden', 'true')
-    sidebarEl.removeAttribute('aria-modal')
-    sidebarEl.removeAttribute('role')
-  }
-}
-
 const isReturningToSidebar = ref(false)
 
 watch(currentPage, () => {
   if (isReturningToSidebar.value) return
-  cleanupBackdrops()
-  setTimeout(cleanupBackdrops, 350)
+  cleanupSidebar('sidebar')
+  setTimeout(() => cleanupSidebar('sidebar'), 350)
 })
 
-const toggleSidebar = () => {
-  const el = document.getElementById("sidebar")
-  if(el) {
-    const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
-    inst.toggle()
-  }
-}
-
-const openSidebarSafe = () => {
-  const el = document.getElementById("sidebar")
-  if(el) {
-    const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
-    inst.show()
-  }
-}
+const toggleSidebar = () => toggleOffcanvas('sidebar')
+const openSidebarSafe = () => showOffcanvas('sidebar')
 
 const selectZoneFromSidebar = (zone) => {
   filterZone.value = zone
   isSelectionMode.value = false
   selectedHomeIds.value = []
   goHome()
-  setTimeout(cleanupBackdrops, 100)
+  setTimeout(() => cleanupSidebar('sidebar'), 100)
 }
 
 const goSettingsFromSidebar = () => {
   currentPage.value = "settings"
-  setTimeout(cleanupBackdrops, 100)
+  setTimeout(() => cleanupSidebar('sidebar'), 100)
 }
 
 const goPageFromSidebar = (page) => {
   currentPage.value = page
-  setTimeout(cleanupBackdrops, 100)
+  setTimeout(() => cleanupSidebar('sidebar'), 100)
 }
 
 const returnToSidebar = () => {

@@ -797,34 +797,13 @@ const { compressFile } = useImageCompression();
                 const sidebarEl = document.getElementById('sidebar');
                 if (sidebarEl) {
                     sidebarEl.addEventListener('hidden.bs.offcanvas', () => {
-                        // 1. 強制清理 body 樣式
+                        // 強制清理 body 樣式和殘留 backdrop
                         document.body.style.overflow = '';
                         document.body.style.paddingRight = '';
                         document.body.classList.remove('modal-open');
-                        
-                        // 2. 移除所有殘留 backdrop
                         document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
                     });
                 }
-
-                // 使用 MutationObserver 監聽 backdrop 新增，並為其添加點擊清理邏輯
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach(mutation => {
-                        mutation.addedNodes.forEach(node => {
-                            if (node.classList && node.classList.contains('offcanvas-backdrop')) {
-                                node.addEventListener('click', () => {
-                                    setTimeout(() => {
-                                        document.body.style.overflow = '';
-                                        document.body.style.paddingRight = '';
-                                        document.body.classList.remove('modal-open');
-                                        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
-                                    }, 350); // Bootstrap transition duration
-                                });
-                            }
-                        });
-                    });
-                });
-                observer.observe(document.body, { childList: true });
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {

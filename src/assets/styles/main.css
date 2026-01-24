@@ -648,10 +648,16 @@ body {
     border: 1px solid #141414 !important;
 }
 
-@media (max-width: 768px) {
-    body .offcanvas-backdrop {
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-    }
+/* 修正：使用 :not 選擇器確保側邊欄關閉後 body 可滾動 */
+/* 當 offcanvas 顯示時，Bootstrap 會加上 .modal-open，這裡不干預 */
+/* 當 offcanvas 隱藏後，確保 body 恢復正常 */
+body:not(.modal-open) {
+    overflow: auto !important;
+    padding-right: 0 !important;
+}
+
+/* 確保 backdrop 在動畫結束後被正確清理 */
+.offcanvas:not(.show)~.offcanvas-backdrop {
+    display: none !important;
+    pointer-events: none !important;
 }

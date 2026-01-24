@@ -28,10 +28,10 @@ export const getZoneName = (zone) => {
  */
 export const getZoneColor = (zone) => {
     switch (zone) {
-        case 'cold': return '#0d6efd'
-        case 'frozen': return '#6f42c1'
-        case 'veggie': return '#198754'
-        default: return '#6c757d'
+        case 'cold': return '#80aaff'
+        case 'frozen': return '#002266'
+        case 'veggie': return '#29a329'
+        default: return '#80aaff'
     }
 }
 

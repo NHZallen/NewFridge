@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { initializeApp } from 'firebase/app'
 import { getFirestore, collection, deleteDoc, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
@@ -172,15 +172,18 @@ import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
 // Bootstrap is now handled via useBootstrap composable
 
 // Components
-import SetupScreen from './components/SetupScreen.vue'
+// Components - Keep Core Components Sync
 import HomeView from './components/HomeView.vue'
-import ItemForm from './components/ItemForm.vue'
-import ToBuyListPage from './components/ToBuyListPage.vue'
-import ShoppingCartPage from './components/ShoppingCartPage.vue'
-import TakeOutPage from './components/TakeOutPage.vue'
-import SettingsPage from './components/SettingsPage.vue'
-import UpdateInfoPage from './components/UpdateInfoPage.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
+
+// Components - Lazy Load Others
+const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
+const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
+const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
+const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
+const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
+const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
+const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
 
 // Composables
 import { useBootstrap } from './composables/useBootstrap'

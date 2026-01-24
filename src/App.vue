@@ -785,14 +785,34 @@ const { compressFile } = useImageCompression();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            // 通用遮罩清理函數
+
+            // 強力清理所有殘留 backdrop 與鎖定狀態
             const cleanupBackdrops = () => {
-                document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                // 1. 移除所有 backdrop 元素
+                document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+                
+                // 2. 解鎖 body
                 document.body.classList.remove('modal-open');
                 document.body.style.removeProperty('overflow');
                 document.body.style.removeProperty('padding-right');
-            };
 
+                // 3. 確保側邊欄實例狀態正確 (如果 DOM 還在)
+                const sidebarEl = document.getElementById('sidebar');
+                if (sidebarEl) {
+                    const inst = bootstrap.Offcanvas.getInstance(sidebarEl);
+                    if (inst) {
+                        try {
+                            inst.hide();
+                        } catch (e) {
+                            // 忽略隱藏錯誤
+                        }
+                    }
+                    sidebarEl.classList.remove('show');
+                    sidebarEl.setAttribute('aria-hidden', 'true');
+                    sidebarEl.removeAttribute('aria-modal');
+                    sidebarEl.removeAttribute('role');
+                }
+            };
             onMounted(() => {
                 loadSettings();
                 checkConfig();
@@ -1043,32 +1063,7 @@ const { compressFile } = useImageCompression();
             };
 
             // 強力清理所有殘留 backdrop 與鎖定狀態
-            const cleanupBackdrops = () => {
-                // 1. 移除所有 backdrop 元素
-                document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
-                
-                // 2. 解鎖 body
-                document.body.classList.remove('modal-open');
-                document.body.style.removeProperty('overflow');
-                document.body.style.removeProperty('padding-right');
 
-                // 3. 確保側邊欄實例狀態正確 (如果 DOM 還在)
-                const sidebarEl = document.getElementById('sidebar');
-                if (sidebarEl) {
-                    const inst = bootstrap.Offcanvas.getInstance(sidebarEl);
-                    if (inst) {
-                        try {
-                            inst.hide();
-                        } catch (e) {
-                            // 忽略隱藏錯誤
-                        }
-                    }
-                    sidebarEl.classList.remove('show');
-                    sidebarEl.setAttribute('aria-hidden', 'true');
-                    sidebarEl.removeAttribute('aria-modal');
-                    sidebarEl.removeAttribute('role');
-                }
-            };
 
             // 全局監聽頁面切換，一旦切換立即執行清理
             watch(currentPage, () => {

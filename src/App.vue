@@ -1037,42 +1037,25 @@ const { compressFile } = useImageCompression();
             };
 
             // 強制關閉側邊欄並清理所有狀態
+            // 強制關閉側邊欄並清理所有狀態
             const closeSidebarCompletely = () => {
                 const el = document.getElementById("sidebar");
                 if (!el) return;
                 
-                // 強制移除 show class
-                el.classList.remove('show', 'showing');
-                el.removeAttribute('aria-modal');
-                el.removeAttribute('role');
-                el.setAttribute('aria-hidden', 'true');
-                
-                // 移除所有 backdrop
-                document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
-                
-                // 清理 body 樣式
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-                
-                // 銷毀現有實例
                 const inst = bootstrap.Offcanvas.getInstance(el);
                 if (inst) {
-                    try { inst.dispose(); } catch(e) {}
-                }
-
-                // 強制重置所有並移除各種可能的鎖定
-                setTimeout(() => {
-                    document.body.style.overflow = '';
-                    document.body.style.height = '';
+                    inst.hide();
+                } else {
+                    // Fallback for extreme cases (if instance lost but DOM remains)
+                    el.classList.remove('show', 'showing');
+                    el.removeAttribute('aria-modal');
+                    el.removeAttribute('role');
+                    el.setAttribute('aria-hidden', 'true');
                     document.body.classList.remove('modal-open');
-                    document.body.removeAttribute('data-bs-overflow');
-                    
-                    document.documentElement.style.overflow = '';
-                    
-                    // 再次確保 backdrop 移除
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
                     document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
-                }, 100);
+                }
             };
 
             const selectZoneFromSidebar = (zone) => {

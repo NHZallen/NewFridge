@@ -65,8 +65,14 @@
             
             <!-- 多選模式勾選遮罩 -->
             <div v-if="isSelectionMode" class="selection-overlay">
-                <i class="bi bi-check-circle-fill selection-check" v-if="selectedHomeIds.includes(item.id)"></i>
-                <i class="bi bi-circle text-muted fs-1" v-else></i>
+                <template v-if="item.shoppingStatus === 'toBuy' || item.shoppingStatus === 'inCart'">
+                    <!-- 已在清單中的物品禁止選擇 -->
+                    <i class="bi bi-cart-check-fill text-secondary fs-1 opacity-50"></i>
+                </template>
+                <template v-else>
+                    <i class="bi bi-check-circle-fill selection-check" v-if="selectedHomeIds.includes(item.id)"></i>
+                    <i class="bi bi-circle text-muted fs-1" v-else></i>
+                </template>
             </div>
 
             <div class="item-img-box" @click.stop="!isSelectionMode && $emit('open-preview', item.image)">
@@ -247,6 +253,9 @@ export default {
 
     const handleCardClick = (item) => {
         if (props.isSelectionMode) {
+            // 防止重複加入：已在待買或購物車的不能選
+            if (item.shoppingStatus === 'toBuy' || item.shoppingStatus === 'inCart') return;
+
             const list = [...props.selectedHomeIds]
             const idx = list.indexOf(item.id)
             if (idx > -1) {

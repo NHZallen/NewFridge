@@ -1,6 +1,17 @@
-export const LATEST_VERSION = "1.9.2";
+export const LATEST_VERSION = "1.9.3";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.9.3",
+    date: "2026-01-24",
+    title: "極致效能與架構重構",
+    changes: [
+      "核心架構升級：將單一大型檔案拆分為模組化組件，大幅提升維護性與穩定性",
+      "渲染效能優化 (v-memo)：針對長列表啟用智慧緩存，僅在資料變動時更新畫面，滑動更順暢",
+      "CSS 效能調校：優化滾動容器的渲染層級 (contain)，減少瀏覽器繪製負擔",
+      "載入速度提升：瘦身主應用程式體積，配合離線快取機制，達到秒開體驗"
+    ]
+  },
   {
     version: "1.9.2",
     date: "2026-01-24",

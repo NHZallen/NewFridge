@@ -417,6 +417,18 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Toast Notification -->
+            <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index: 1090">
+                <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" ref="toastEl">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-check-circle-fill me-2"></i>{{ toastMessage }}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            </div>
             
         </template>
     
@@ -495,6 +507,18 @@ const { compressFile } = useImageCompression();
             // 多選管理模式 (改名為通用 Ids)
             const isSelectionMode = ref(false);
             const selectedHomeIds = ref([]);
+            
+            const toastMessage = ref("");
+            const toastEl = ref(null);
+            const showToast = (msg) => {
+                toastMessage.value = msg;
+                nextTick(() => {
+                    if (toastEl.value) {
+                         const t = bootstrap.Toast.getOrCreateInstance(toastEl.value);
+                         t.show();
+                    }
+                });
+            };
 
             let longPressTimer = null;
 
@@ -922,7 +946,7 @@ const { compressFile } = useImageCompression();
                     updateDoc(doc(db, "fridge_items", id), { shoppingStatus: 'toBuy' })
                 );
                 await Promise.all(promises);
-                alert("已加入待購買清單");
+                showToast("已加入待購買清單");
                 selectedHomeIds.value = [];
                 isSelectionMode.value = false;
             };

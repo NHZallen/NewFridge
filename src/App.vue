@@ -1060,8 +1060,13 @@ const { compressFile } = useImageCompression();
             // 強力清理所有殘留 backdrop 與鎖定狀態
 
 
+            const isReturningToSidebar = ref(false);
+
             // 全局監聽頁面切換，一旦切換立即執行清理
             watch(currentPage, () => {
+                // 如果是正在返回側邊欄的操作，不要執行清理，否則會把剛打開的側邊欄關掉
+                if (isReturningToSidebar.value) return;
+
                 // 立即清理
                 cleanupBackdrops();
                 // 稍微延遲再清理一次，防止動畫殘留
@@ -1154,10 +1159,13 @@ const { compressFile } = useImageCompression();
             };
 
             const returnToSidebar = () => {
+                isReturningToSidebar.value = true;
                 currentPage.value = 'home';
                 nextTick(() => {
                     setTimeout(() => {
                         openSidebarSafe();
+                        // 延遲重置，確保 watcher 已經跑完且側邊欄已打開
+                        setTimeout(() => { isReturningToSidebar.value = false; }, 500);
                     }, 50);
                 });
             };

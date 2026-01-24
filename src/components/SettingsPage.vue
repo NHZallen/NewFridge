@@ -239,9 +239,9 @@ const emit = defineEmits([
   'unlink-google',
   'save-family-name',
   'edit-user-name',
-  'show-update-modal',
   'reset-app',
-  'update:settings'
+  'update:settings',
+  'setup-push'
 ])
 
 // 內部狀態
@@ -264,5 +264,13 @@ const saveFamilyName = () => {
   if (!editFamilyNameTemp.value.trim()) return
   emit('save-family-name', editFamilyNameTemp.value.trim())
   isEditingFamilyName.value = false
+}
+
+const fcmVapidKeyTemp = ref(localStorage.getItem('fcm_vapid_key') || '')
+
+const setupPush = () => {
+  if (!fcmVapidKeyTemp.value.trim()) return
+  localStorage.setItem('fcm_vapid_key', fcmVapidKeyTemp.value.trim())
+  emit('setup-push', fcmVapidKeyTemp.value.trim())
 }
 </script>

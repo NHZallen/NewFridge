@@ -137,6 +137,39 @@
                     <div style="width: 74px;"></div>
                 </div>
     
+                <!-- 帳號綁定 Google -->
+                <div class="card section-card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <i class="bi bi-google text-danger"></i>
+                            <div class="fw-bold">帳號綁定</div>
+                        </div>
+                        
+                        <div v-if="!currentUser">
+                            <p class="text-muted small mb-3">連結 Google 帳號可確保資料更安全，並方便在不同裝置間登入。</p>
+                            <button class="btn btn-outline-dark w-100 rounded-pill d-flex align-items-center justify-content-center gap-2" @click="linkGoogleAccount">
+                                <i class="bi bi-google"></i>
+                                連結 Google 帳號
+                            </button>
+                        </div>
+                        <div v-else>
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <img v-if="currentUser.photoURL" :src="currentUser.photoURL" class="rounded-circle" style="width: 48px; height: 48px;">
+                                <div v-else class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                    {{ currentUser.email?.charAt(0).toUpperCase() }}
+                                </div>
+                                <div class="overflow-hidden">
+                                    <div class="fw-bold text-truncate">{{ currentUser.displayName || 'Google 使用者' }}</div>
+                                    <div class="text-muted small text-truncate">{{ currentUser.email }}</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill w-100" @click="unlinkGoogleAccount">
+                                解除綁定 (登出)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 家庭設定 -->
                 <div class="card section-card mb-3">
                     <div class="card-body">
@@ -440,6 +473,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { initializeApp } from 'firebase/app'
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION, ZONE_COLORS as ZONE_COLORS_CONST, ZONE_NAMES, LONG_PRESS_DURATION } from './utils/constants'
 import { getTodayStr, getDays, addDaysToDate, parseLocalDate } from './utils/dateUtils'
@@ -456,6 +490,7 @@ const appVersion = APP_VERSION;
 // Globals
 let appFirebase;
 let db;
+let auth; // Firebase Auth instance
 
 // Composable
 const { compressFile } = useImageCompression();
@@ -467,8 +502,36 @@ const { compressFile } = useImageCompression();
             const inputUserName = ref("");
             const currentUserName = ref("");
             const setupError = ref("");
+            // Auth State
+            const currentUser = ref(null);
 
             const items = ref([]);
+// ... (lines 472-575 match original context, skipping for brevity in replacement search) ... 
+            const initFirebase = async (config, userName) => {
+                try {
+                    if (!appFirebase) {
+                        appFirebase = initializeApp(config);
+                        db = getFirestore(appFirebase);
+                        auth = getAuth(appFirebase);
+                        
+                        // 監聽登入狀態
+                        onAuthStateChanged(auth, (user) => {
+                            currentUser.value = user;
+                        });
+                    }
+                    
+                    currentUserName.value = userName;
+                    localStorage.setItem("fridge_user_name", userName);
+                    
+                    isConfigured.value = true;
+                    isLoading.value = true;
+
+                    await checkAndJoinFamily(userName);
+                    startListeners();
+                } catch (e) {
+                    throw e;
+                }
+            };
             const searchText = ref("");
             const filterZone = ref("all");
 
@@ -624,6 +687,30 @@ const { compressFile } = useImageCompression();
                     appFirebase = null; 
                 } finally {
                     isSettingUp.value = false;
+                }
+            };
+
+            // Google 登入綁定
+            const linkGoogleAccount = async () => {
+                if (!auth) return;
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    showToast("綁定成功！");
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                    alert("綁定失敗：" + error.message);
+                }
+            };
+
+            // 解除綁定 (登出)
+            const unlinkGoogleAccount = async () => {
+                if (!auth) return;
+                try {
+                    await signOut(auth);
+                    showToast("已解除綁定");
+                } catch (error) {
+                    console.error("SignOut Error", error);
                 }
             };
 

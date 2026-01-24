@@ -119,37 +119,7 @@
       </div>
     </div>
 
-    <!-- 推播通知設定 -->
-    <div class="card section-card mb-3">
-      <div class="card-body">
-        <div class="d-flex align-items-center gap-2 mb-3">
-          <i class="bi bi-bell-fill text-warning"></i>
-          <div class="fw-bold">推播通知設定</div>
-        </div>
-        
-        <div v-if="!hasVapidKey" class="mb-3">
-          <label class="form-label small text-muted">VAPID 公鑰 (Web Push Certificate)</label>
-          <div class="input-group">
-            <input type="text" class="form-control form-control-sm" v-model="vapidKeyTemp" placeholder="請貼上 VAPID Key">
-            <button class="btn btn-sm btn-primary" @click="handleSaveKey">儲存</button>
-          </div>
-        </div>
 
-        <div v-else class="mb-3">
-           <div class="d-flex justify-content-between align-items-center mb-3">
-             <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>已設定金鑰</span>
-             <button class="btn btn-sm btn-outline-danger py-0" style="font-size: 0.8rem" @click="handleDeleteKey">刪除金鑰</button>
-           </div>
-           
-           <button class="btn btn-outline-primary w-100 rounded-pill" @click="handleEnableNotifications">
-            <i class="bi bi-broadcast"></i> {{ isNotificationEnabled ? '關閉通知' : '開啟通知' }}
-          </button>
-           <div class="text-muted small mt-2 text-center" style="font-size: 0.75rem">
-             點擊上方按鈕來{{ isNotificationEnabled ? '停用' : '啟用' }}本裝置的推播權限
-           </div>
-        </div>
-      </div>
-    </div>
 
 
     <!-- 版本資訊 -->
@@ -236,16 +206,10 @@ const emit = defineEmits([
   'save-family-name',
   'edit-user-name',
   'reset-app',
-  'update:settings',
-  'enable-notifications'
+  'update:settings'
 ])
 
 // 內部狀態
-const vapidKeyTemp = ref('')
-const hasVapidKey = ref(!!localStorage.getItem('fridge_vapid_key'))
-// 這裡簡單用 localStorage 紀錄"是否點過開啟"，實際上權限狀態比較複雜
-const isNotificationEnabled = ref(localStorage.getItem('fridge_notification_enabled') === 'true')
-
 const isEditingFamilyName = ref(false)
 const editFamilyNameTemp = ref('')
 const showAllUpdates = ref(false)
@@ -267,39 +231,4 @@ const saveFamilyName = () => {
   isEditingFamilyName.value = false
 }
 
-const handleSaveKey = () => {
-    if (!vapidKeyTemp.value.trim()) return;
-    localStorage.setItem('fridge_vapid_key', vapidKeyTemp.value.trim());
-    hasVapidKey.value = true;
-    vapidKeyTemp.value = '';
-}
-
-const handleDeleteKey = () => {
-    if(confirm('確定要刪除金鑰嗎？這將導致無法接收通知。')) {
-        localStorage.removeItem('fridge_vapid_key');
-        localStorage.removeItem('fridge_notification_enabled');
-        hasVapidKey.value = false;
-        isNotificationEnabled.value = false;
-    }
-}
-
-const handleEnableNotifications = () => {
-    const key = localStorage.getItem('fridge_vapid_key')
-    if (!key) {
-        alert('錯誤：找不到金鑰');
-        return;
-    }
-    
-    // 簡單的 Toggle 邏輯
-    if (!isNotificationEnabled.value) {
-        emit('enable-notifications', key);
-        isNotificationEnabled.value = true;
-        localStorage.setItem('fridge_notification_enabled', 'true');
-    } else {
-        // 關閉邏輯通常只能做本地標記，無法真正撤銷瀏覽器權限
-        isNotificationEnabled.value = false;
-        localStorage.removeItem('fridge_notification_enabled');
-        alert('已關閉通知 (瀏覽器權限需手動在網址列設定重置)');
-    }
-}
 </script>

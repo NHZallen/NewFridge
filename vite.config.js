@@ -21,8 +21,7 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png'
           }
-        ],
-        gcm_sender_id: '103953800507'
+        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],

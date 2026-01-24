@@ -96,7 +96,6 @@
         @show-update-modal="showUpdateModal(true)"
         @reset-app="resetApp"
         @update:settings="handleSettingsChange"
-        @enable-notifications="enableNotifications"
       />
 
       <!-- UPDATE INFO PAGE -->
@@ -429,35 +428,7 @@ const unlinkGoogleAccount = async () => {
   }
 }
 
-// Push Notifications
-import { setupFCM, onForegroundMessage } from './utils/pushNotifications'
-
-const enableNotifications = async (vapidKey) => {
-  if (!appFirebase || !db) return
-  
-  try {
-    const token = await setupFCM(appFirebase, db, currentUserName.value, vapidKey)
-    if (token) {
-      showToast("通知功能已啟用！")
-      
-      // 啟用成功後立即開始監聽前景訊息
-      onForegroundMessage(appFirebase, (payload) => {
-        console.log('[App.vue] Foreground Message:', payload)
-        const title = payload.notification?.title || '新通知'
-        const body = payload.notification?.body || ''
-        showToast(`🔔 ${title}: ${body}`)
-      })
-
-    } else {
-      showToast("無法啟用通知，請檢查權限或 Key")
-    }
-  } catch (e) {
-    console.error(e)
-    alert("啟用失敗：" + e.message)
-  }
-}
-
-// 設定頁面
+// Google Auth
 const saveFamilyName = async (newName) => {
   if (!newName?.trim()) return
   try {

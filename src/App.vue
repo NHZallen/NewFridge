@@ -806,6 +806,25 @@ const { compressFile } = useImageCompression();
                         document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
                     });
                 }
+
+                // 使用 MutationObserver 監聽 backdrop 新增，並為其添加點擊清理邏輯
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach(mutation => {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.classList && node.classList.contains('offcanvas-backdrop')) {
+                                node.addEventListener('click', () => {
+                                    setTimeout(() => {
+                                        document.body.style.overflow = '';
+                                        document.body.style.paddingRight = '';
+                                        document.body.classList.remove('modal-open');
+                                        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+                                    }, 350); // Bootstrap transition duration
+                                });
+                            }
+                        });
+                    });
+                });
+                observer.observe(document.body, { childList: true });
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {

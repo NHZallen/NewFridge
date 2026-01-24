@@ -785,6 +785,14 @@ const { compressFile } = useImageCompression();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
+            // 通用遮罩清理函數
+            const cleanupBackdrops = () => {
+                document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            };
+
             onMounted(() => {
                 loadSettings();
                 checkConfig();
@@ -792,19 +800,16 @@ const { compressFile } = useImageCompression();
                 window.addEventListener('scroll', () => {
                     showScrollTop.value = window.scrollY > 300;
                 });
+            });
 
-                // 強制清理 backdrop - 解決 Bootstrap Offcanvas backdrop 殘留問題
-                const sidebarEl = document.getElementById('sidebar');
-                if (sidebarEl) {
-                    sidebarEl.addEventListener('hidden.bs.offcanvas', () => {
-                        // 立即清理所有可能殘留的 backdrop
-                        const backdrops = document.querySelectorAll('.offcanvas-backdrop');
-                        backdrops.forEach(backdrop => backdrop.remove());
-                        
-                        // 確保 body 解鎖
-                        document.body.classList.remove('modal-open');
-                        document.body.style.removeProperty('overflow');
-                        document.body.style.removeProperty('padding-right');
+            // 監聽設定完成狀態，當介面渲染後再綁定 Sidebar 事件
+            watch(isConfigured, (newVal) => {
+                if (newVal) {
+                    nextTick(() => {
+                        const sidebarEl = document.getElementById('sidebar');
+                        if (sidebarEl) {
+                            sidebarEl.addEventListener('hidden.bs.offcanvas', cleanupBackdrops);
+                        }
                     });
                 }
             });
@@ -1038,12 +1043,12 @@ const { compressFile } = useImageCompression();
             };
 
             // 強制關閉側邊欄並清理所有狀態
-            // 強制關閉側邊欄並清理所有狀態
-            // 封裝側邊欄關閉邏輯為 Promise，確保動話完成後再執行後續
+            // 封裝側邊欄關閉邏輯為 Promise，確保動畫完成後再執行後續
             const closeSidebarWithPromise = () => {
                 return new Promise((resolve) => {
                     const el = document.getElementById("sidebar");
                     if (!el) {
+                        cleanupBackdrops();
                         resolve();
                         return;
                     }
@@ -1052,10 +1057,7 @@ const { compressFile } = useImageCompression();
                     if (!inst) {
                         // 如果沒有實例但 DOM 在，手動清理
                         el.classList.remove('show');
-                        document.body.classList.remove('modal-open');
-                        document.body.style.overflow = '';
-                        document.body.style.paddingRight = '';
-                        document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
+                        cleanupBackdrops();
                         resolve();
                         return;
                     }
@@ -1063,6 +1065,7 @@ const { compressFile } = useImageCompression();
                     // 監聽一次性關閉事件
                     const onHidden = () => {
                         el.removeEventListener('hidden.bs.offcanvas', onHidden);
+                        cleanupBackdrops(); // 雙重保險
                         resolve();
                     };
                     el.addEventListener('hidden.bs.offcanvas', onHidden);
@@ -1139,6 +1142,7 @@ const { compressFile } = useImageCompression();
             const returnToSidebar = () => {
                 currentPage.value = 'home';
                 setTimeout(() => {
+                    cleanupBackdrops(); // 確保沒有殘留遮罩
                     const el = document.getElementById("sidebar");
                     const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                     inst.show();

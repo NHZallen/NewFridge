@@ -98,5 +98,5 @@ npm run dev
 
 ---
 
-> 💻 開發者：**Antigravity AI (Pair Programmed with USER)**   
+> 💻 開發者：**NHZallen**   
 > 📅 最後更新日期：2026-01-24

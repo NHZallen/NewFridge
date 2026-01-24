@@ -1101,8 +1101,6 @@ const { compressFile } = useImageCompression();
             
             const goPageFromSidebar = (page) => {
                 closeSidebarCompletely();
-                selectedToBuyIds.value = [];
-                selectedCartIds.value = [];
                 currentPage.value = page;
             };
 

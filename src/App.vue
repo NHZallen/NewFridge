@@ -169,6 +169,7 @@ import { APP_VERSION } from './utils/constants'
 import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
+import { initSecurity } from './utils/security'
 // Bootstrap is now handled via useBootstrap composable
 
 // Components
@@ -853,6 +854,7 @@ const cartList = computed(() => {
 
 // Lifecycle
 onMounted(() => {
+  initSecurity()
   loadSettings()
   checkConfig()
   window.addEventListener('scroll', () => {

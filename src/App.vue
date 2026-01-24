@@ -809,6 +809,32 @@ const { compressFile } = useImageCompression();
                     const googleName = user.displayName || user.email.split('@')[0];
                     currentUserName.value = googleName;
 
+                    // --- 新增：如果是使用系統預設設定，檢查是否為合法成員 ---
+                    if (hasSystemConfig.value) {
+                         const settingsRef = doc(db, "family_metadata", "general");
+                         const docSnap = await getDoc(settingsRef);
+                         
+                         // 如果資料庫已經有家庭設定 (不是全新的空白庫)
+                         if (docSnap.exists()) {
+                             const data = docSnap.data();
+                             const members = data.members || [];
+                             
+                             // 檢查此人是否在成員名單中
+                             if (!members.includes(googleName)) {
+                                 // 不是成員 -> 踢出
+                                 await signOut(auth);
+                                 alert(`抱歉，您 (${googleName}) 不是此預設冰箱資料庫的成員。\n\n系統將切換至手動模式，請輸入您自己的 Firebase 設定碼以建立新的冰箱。`);
+                                 
+                                 // 切換回手動模式
+                                 hasSystemConfig.value = false;
+                                 inputConfigStr.value = ""; // 清空以免混淆
+                                 isSettingUp.value = false;
+                                 return; // 終止流程
+                             }
+                         }
+                    }
+                    // ---------------------------------------------------
+
                     // 5. 儲存設定 (如果是環境變數，存個標記即可，但為了兼容舊邏輯，還是存完整的)
                     localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj));
                     localStorage.setItem("fridge_user_name", googleName);

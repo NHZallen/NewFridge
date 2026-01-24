@@ -18,29 +18,49 @@
             <div class="card w-100 border-0 shadow-sm" style="max-width: 500px;">
                 <div class="card-body">
                     <form @submit.prevent="saveInitialConfig">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">1. Firebase 設定碼</label>
-                            <textarea class="form-control font-monospace small" rows="5" v-model="inputConfigStr" placeholder='請貼上 const firebaseConfig = { ... }' required></textarea>
+                        
+                        <!-- 手動輸入設定 (只有在沒有環境變數時顯示) -->
+                        <div v-if="!hasEnvConfig">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">1. Firebase 設定碼</label>
+                                <textarea class="form-control font-monospace small" rows="5" v-model="inputConfigStr" placeholder='請貼上 const firebaseConfig = { ... }' required></textarea>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">2. 您的稱呼 (家庭成員名稱)</label>
+                                <input type="text" class="form-control" v-model="inputUserName" placeholder="例如：爸爸、媽媽" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" :disabled="isSettingUp">
+                                {{ isSettingUp ? '處理中...' : '開始使用' }}
+                            </button>
+                            <div class="d-flex align-items-center my-3">
+                                <hr class="flex-grow-1">
+                                <span class="mx-2 text-muted small">或</span>
+                                <hr class="flex-grow-1">
+                            </div>
                         </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">2. 您的稱呼 (家庭成員名稱)</label>
-                            <input type="text" class="form-control" v-model="inputUserName" placeholder="例如：爸爸、媽媽" required>
-                        </div>
-                        <div v-if="setupError" class="alert alert-danger py-2 mb-3">{{ setupError }}</div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" :disabled="isSettingUp">
-                            {{ isSettingUp ? '處理中...' : '開始使用' }}
-                        </button>
 
-                        <div class="d-flex align-items-center my-3">
-                            <hr class="flex-grow-1">
-                            <span class="mx-2 text-muted small">或</span>
-                            <hr class="flex-grow-1">
+                        <!-- 系統預設設定提示 -->
+                        <div v-else class="alert alert-success d-flex align-items-center mb-4">
+                            <i class="bi bi-shield-check fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">已載入系統設定</div>
+                                <div class="small">您可以直接開始使用，無需手動設定。</div>
+                            </div>
                         </div>
+
+                        <div v-if="setupError" class="alert alert-danger py-2 mb-3">{{ setupError }}</div>
 
                         <button type="button" class="btn btn-outline-dark w-100 rounded-pill py-2 fw-bold d-flex align-items-center justify-content-center gap-2" 
                                 @click="setupWithGoogle" :disabled="isSettingUp">
                             <i class="bi bi-google"></i> 使用 Google 帳號登入
                         </button>
+                        
+                        <div v-if="hasEnvConfig" class="text-center mt-3">
+                            <button type="button" class="btn btn-link text-muted small text-decoration-none" @click="inputConfigStr = 'manual'; hasEnvConfig = false">
+                                手動輸入設定碼
+                            </button>
+                        </div>
+
                     </form>
                 </div>
             </div>
@@ -516,6 +536,19 @@ const { compressFile } = useImageCompression();
             // Auth State
             const currentUser = ref(null);
 
+            // 環境變數設定檢測
+            const envConfig = {
+                apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+                authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+                projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+                storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+                messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+                appId: import.meta.env.VITE_FIREBASE_APP_ID
+            };
+            
+            // 判斷是否所有必要欄位都有值 (初始化一次即可，改為 ref 允許手動切換)
+            const hasEnvConfig = ref(!!(envConfig.apiKey && envConfig.projectId && envConfig.appId));
+
             const items = ref([]);
 // ... (lines 472-575 match original context, skipping for brevity in replacement search) ... 
             const initFirebase = async (config, userName) => {
@@ -710,33 +743,45 @@ const { compressFile } = useImageCompression();
             // 初始設定時使用 Google 登入
             const setupWithGoogle = async () => {
                 setupError.value = "";
-                
-                // 1. 驗證並解析 Config
-                if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
-                    setupError.value = "請先貼上 Firebase 設定碼";
-                    return;
-                }
+                let configObj = null;
 
                 isSettingUp.value = true;
 
                 try {
-                    let cleanStr = inputConfigStr.value.trim();
-                    cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '');
-                    cleanStr = cleanStr.replace(/;$/, '');
-                    
-                    const configObj = (new Function(`return ${cleanStr}`))();
-                    if (!configObj.projectId) throw new Error("無效的設定內容");
+                    // 1. 取得設定
+                    if (hasEnvConfig.value) {
+                         configObj = envConfig;
+                    } else {
+                        // 手動輸入模式
+                        if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
+                            throw new Error("請先貼上 Firebase 設定碼");
+                        }
+                        
+                        let cleanStr = inputConfigStr.value.trim();
+                        cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '');
+                        cleanStr = cleanStr.replace(/;$/, '');
+                        configObj = (new Function(`return ${cleanStr}`))();
+                    }
+
+                    if (!configObj || !configObj.projectId) throw new Error("無效的設定內容");
 
                     // 2. 初始化 Firebase (如果尚未初始化)
                     if (!appFirebase) {
-                        appFirebase = initializeApp(configObj);
-                        db = getFirestore(appFirebase);
-                        auth = getAuth(appFirebase);
-                        
-                        // 確保監聽器掛載
-                        onAuthStateChanged(auth, (user) => {
-                            currentUser.value = user;
-                        });
+                        try {
+                            appFirebase = initializeApp(configObj);
+                            db = getFirestore(appFirebase);
+                            auth = getAuth(appFirebase);
+                            
+                            // 確保監聽器掛載
+                            onAuthStateChanged(auth, (user) => {
+                                currentUser.value = user;
+                            });
+                        } catch(initErr) {
+                           // 忽略重複初始化錯誤
+                           if (getAuth(appFirebase)) {
+                               auth = getAuth(appFirebase);
+                           }
+                        }
                     }
 
                     // 3. 呼叫 Google 登入
@@ -748,7 +793,7 @@ const { compressFile } = useImageCompression();
                     const googleName = user.displayName || user.email.split('@')[0];
                     currentUserName.value = googleName;
 
-                    // 5. 儲存設定
+                    // 5. 儲存設定 (如果是環境變數，存個標記即可，但為了兼容舊邏輯，還是存完整的)
                     localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj));
                     localStorage.setItem("fridge_user_name", googleName);
 
@@ -762,11 +807,7 @@ const { compressFile } = useImageCompression();
 
                 } catch (e) {
                     console.error(e);
-                    setupError.value = "Google 登入或設定失敗：" + e.message;
-                    // Reset if failed
-                    if (appFirebase && !isConfigured.value) {
-                         // 這裡比較難完全重置 firebase instance，但至少讓 UI 狀態回覆
-                    }
+                    setupError.value = "登入失敗：" + e.message;
                 } finally {
                     isSettingUp.value = false;
                 }

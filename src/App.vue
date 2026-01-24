@@ -636,25 +636,7 @@ const { compressFile } = useImageCompression();
                 }
             };
 
-            const initFirebase = async (config, userName) => {
-                try {
-                    if (!appFirebase) {
-                        appFirebase = initializeApp(config);
-                        db = getFirestore(appFirebase);
-                    }
-                    
-                    currentUserName.value = userName;
-                    localStorage.setItem("fridge_user_name", userName);
-                    
-                    isConfigured.value = true;
-                    isLoading.value = true;
 
-                    await checkAndJoinFamily(userName);
-                    startListeners();
-                } catch (e) {
-                    throw e;
-                }
-            };
 
             const saveInitialConfig = async () => {
                 setupError.value = "";

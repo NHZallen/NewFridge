@@ -112,83 +112,16 @@
       </div>
 
       <!-- 左側邊欄 -->
-      <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel" data-bs-backdrop="true" data-bs-scroll="false">
-        <div class="offcanvas-header">
-          <h5 class="offcanvas-title fw-bold" id="sidebarLabel"><i class="bi bi-snow2 text-primary"></i> 功能選單</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-        </div>
-
-        <div class="offcanvas-body d-flex flex-column">
-          <div class="sidebar-user-block">
-            <div class="text-muted small">目前使用者</div>
-            <div class="fw-bold fs-5">{{ currentUserName }}</div>
-          </div>
-          <hr class="sidebar-divider">
-
-          <!-- 採買區塊 -->
-          <div class="d-grid gap-2 mb-4">
-            <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')">
-              <span class="text-info fw-bold"><i class="bi bi-clipboard-check me-2"></i>待購買清單</span>
-              <span class="badge bg-info text-dark rounded-pill" v-if="toBuyList.length > 0">{{ toBuyList.length }}</span>
-            </button>
-            <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')">
-              <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
-              <span class="badge bg-warning text-dark rounded-pill" v-if="cartList.length > 0">{{ cartList.length }}</span>
-            </button>
-          </div>
-          
-          <hr class="sidebar-divider">
-
-          <div class="d-grid gap-2 mb-4">
-            <button class="btn btn-outline-dark text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('all')">
-              <span><i class="bi bi-grid-fill me-2"></i>全區</span>
-              <div class="d-flex gap-1">
-                <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.all.total }}</span>
-                <span class="badge bg-warning text-dark zone-stat-badge" title="7日警告">{{ zoneStats.all.warning }}</span>
-                <span class="badge bg-danger zone-stat-badge" title="已過期">{{ zoneStats.all.expired }}</span>
-              </div>
-            </button>
-            
-            <button class="btn btn-outline-primary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('cold')">
-              <span><i class="bi bi-snow me-2"></i>冷藏區</span>
-              <div class="d-flex gap-1">
-                <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.cold.total }}</span>
-                <span class="badge bg-warning text-dark zone-stat-badge" title="7日警告">{{ zoneStats.cold.warning }}</span>
-                <span class="badge bg-danger zone-stat-badge" title="已過期">{{ zoneStats.cold.expired }}</span>
-              </div>
-            </button>
-            <button class="btn btn-outline-frozen text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('frozen')">
-              <span><i class="bi bi-box-seam me-2"></i>冷凍區</span>
-              <div class="d-flex gap-1">
-                <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.frozen.total }}</span>
-                <span class="badge bg-warning text-dark zone-stat-badge">{{ zoneStats.frozen.warning }}</span>
-                <span class="badge bg-danger zone-stat-badge">{{ zoneStats.frozen.expired }}</span>
-              </div>
-            </button>
-            <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('veggie')">
-              <span><i class="bi bi-flower1 me-2"></i>蔬果區</span>
-              <div class="d-flex gap-1">
-                <span class="badge bg-secondary zone-stat-badge">{{ zoneStats.veggie.total }}</span>
-                <span class="badge bg-warning text-dark zone-stat-badge">{{ zoneStats.veggie.warning }}</span>
-                <span class="badge bg-danger zone-stat-badge">{{ zoneStats.veggie.expired }}</span>
-              </div>
-            </button>
-            <button class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center" @click="selectZoneFromSidebar('nostock')" data-bs-dismiss="offcanvas">
-              <span><i class="bi bi-archive me-2"></i>無庫存區</span>
-              <div class="d-flex gap-1">
-                <span class="badge bg-secondary zone-stat-badge" title="總數">{{ zoneStats.nostock.total }}</span>
-              </div>
-            </button>
-          </div>
-          
-          <div class="mt-auto">
-            <button class="btn btn-primary w-100 rounded-pill fw-bold" @click="goSettingsFromSidebar" data-bs-dismiss="offcanvas">
-              <i class="bi bi-gear me-1"></i> 設定
-            </button>
-            <div class="text-center text-muted small mt-3">v{{ appVersion }}</div>
-          </div>
-        </div>
-      </div>
+      <SidebarMenu
+        :currentUserName="currentUserName"
+        :zoneStats="zoneStats"
+        :toBuyCount="toBuyList.length"
+        :cartCount="cartList.length"
+        :appVersion="appVersion"
+        @select-zone="selectZoneFromSidebar"
+        @go-to-page="goPageFromSidebar"
+        @go-settings="goSettingsFromSidebar"
+      />
 
       <!-- 編輯使用者名稱視窗 -->
       <div class="modal fade" id="editNameModal" tabindex="-1">
@@ -247,6 +180,7 @@ import ShoppingCartPage from './components/ShoppingCartPage.vue'
 import TakeOutPage from './components/TakeOutPage.vue'
 import SettingsPage from './components/SettingsPage.vue'
 import UpdateInfoPage from './components/UpdateInfoPage.vue'
+import SidebarMenu from './components/SidebarMenu.vue'
 
 const appVersion = APP_VERSION
 

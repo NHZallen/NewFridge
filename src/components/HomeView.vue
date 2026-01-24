@@ -167,118 +167,69 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { getDays } from '../utils/dateUtils.js'
+import { isNoExpiry, getZoneName, getZoneColor, getAlertClass } from '../utils/itemHelpers.js'
 import { LONG_PRESS_DURATION } from '../utils/constants.js'
 
-export default {
-  name: 'HomeView',
-  props: {
-    filteredItems: { type: Array, required: true },
-    filterZone: { type: String, required: true },
-    searchText: { type: String, required: true },
-    familySettings: { type: Object, required: true },
-    isSelectionMode: { type: Boolean, required: true },
-    selectedHomeIds: { type: Array, required: true },
-    showScrollTop: { type: Boolean, default: false }
-  },
-  emits: [
-    'update:filterZone',
-    'update:searchText',
-    'update:isSelectionMode',
-    'update:selectedHomeIds',
-    'edit',
-    'take-out',
-    'delete-selected',
-    'add-batch-to-buy',
-    'add-page',
-    'open-preview',
-    'scroll-to-top'
-  ],
-  setup(props, { emit }) {
-    let longPressTimer = null
+const props = defineProps({
+  filteredItems: { type: Array, required: true },
+  filterZone: { type: String, required: true },
+  searchText: { type: String, required: true },
+  familySettings: { type: Object, required: true },
+  isSelectionMode: { type: Boolean, required: true },
+  selectedHomeIds: { type: Array, required: true },
+  showScrollTop: { type: Boolean, default: false }
+})
 
-    const isNoExpiry = (item) => {
-      return item.noExpiry || !item.expiryDate
-    }
+const emit = defineEmits([
+  'update:filterZone',
+  'update:searchText',
+  'update:isSelectionMode',
+  'update:selectedHomeIds',
+  'edit',
+  'take-out',
+  'delete-selected',
+  'add-batch-to-buy',
+  'add-page',
+  'open-preview',
+  'scroll-to-top',
+  'toggle-sidebar'
+])
 
-    const getZoneName = (zone) => {
-        switch(zone) {
-            case 'all': return '全區';
-            case 'cold': return '冷藏區';
-            case 'frozen': return '冷凍區';
-            case 'veggie': return '蔬果區';
-            case 'nostock': return '無庫存區';
-            default: return '冰箱庫存';
-        }
-    }
+let longPressTimer = null
 
-    const getZoneColor = (zone) => {
-        const z = zone || 'cold';
-        switch(z) {
-            case 'cold': return '#80aaff';
-            case 'frozen': return '#002266';
-            case 'veggie': return '#29a329';
-            default: return '#80aaff';
-        }
-    }
+const formatOwners = (owners) => {
+  if (!owners || owners.length === 0) return "全家"
+  return owners.join(", ")
+}
 
-    const formatOwners = (owners) => {
-        if (!owners || owners.length === 0) return "全家";
-        return owners.join(", ");
-    }
+const handleTouchStart = (item) => {
+  if (props.isSelectionMode) return
+  longPressTimer = setTimeout(() => { emit('edit', item) }, LONG_PRESS_DURATION)
+}
 
-    const getAlertClass = (item) => {
-        if (parseInt(item.quantity) === 0) return ""; 
-        if (isNoExpiry(item)) return "";
-        const d = getDays(item.expiryDate);
-        if (d === null) return "";
-        if (d < 0) return "alert-red"; 
-        if (d <= 7) return "alert-yellow";
-        return "";
-    }
+const handleTouchEnd = () => { 
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null } 
+}
 
-    const handleTouchStart = (item) => {
-        if (props.isSelectionMode) return; 
-        longPressTimer = setTimeout(() => { emit('edit', item); }, LONG_PRESS_DURATION);
-    }
-    
-    const handleTouchEnd = () => { 
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } 
-    }
-    
-    const handleTouchMove = () => { 
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } 
-    }
+const handleTouchMove = () => { 
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null } 
+}
 
-    const handleCardClick = (item) => {
-        if (props.isSelectionMode) {
-            // 防止重複加入：已在待買或購物車的不能選
-            if (item.shoppingStatus === 'toBuy' || item.shoppingStatus === 'inCart') return;
+const handleCardClick = (item) => {
+  if (props.isSelectionMode) {
+    // 防止重複加入：已在待買或購物車的不能選
+    if (item.shoppingStatus === 'toBuy' || item.shoppingStatus === 'inCart') return
 
-            const list = [...props.selectedHomeIds]
-            const idx = list.indexOf(item.id)
-            if (idx > -1) {
-                list.splice(idx, 1)
-            } else {
-                list.push(item.id)
-            }
-            emit('update:selectedHomeIds', list)
-        }
+    const list = [...props.selectedHomeIds]
+    const idx = list.indexOf(item.id)
+    if (idx > -1) {
+      list.splice(idx, 1)
+    } else {
+      list.push(item.id)
     }
-
-    return {
-      getDays,
-      isNoExpiry,
-      getZoneName,
-      getZoneColor,
-      formatOwners,
-      getAlertClass,
-      handleTouchStart,
-      handleTouchEnd,
-      handleTouchMove,
-      handleCardClick
-    }
+    emit('update:selectedHomeIds', list)
   }
 }
 </script>

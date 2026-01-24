@@ -792,6 +792,20 @@ const { compressFile } = useImageCompression();
                 window.addEventListener('scroll', () => {
                     showScrollTop.value = window.scrollY > 300;
                 });
+
+                // 監聽側邊欄關閉事件，確保遮罩完全清除
+                const sidebarEl = document.getElementById('sidebar');
+                if (sidebarEl) {
+                    sidebarEl.addEventListener('hidden.bs.offcanvas', () => {
+                        // 1. 強制清理 body 樣式
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+                        document.body.classList.remove('modal-open');
+                        
+                        // 2. 移除所有殘留 backdrop
+                        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
+                    });
+                }
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {

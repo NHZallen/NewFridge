@@ -1188,6 +1188,17 @@ const { compressFile } = useImageCompression();
                 });
             });
 
+            // 側邊欄需要這兩個 computed (顯示徽章數量)
+            const toBuyList = computed(() => {
+                return items.value.filter(i => i.shoppingStatus === 'toBuy');
+            });
+
+            const cartList = computed(() => {
+                return items.value.filter(i => i.shoppingStatus === 'inCart');
+            });
+
+
+
 
 
             const startPurchase = (item) => {

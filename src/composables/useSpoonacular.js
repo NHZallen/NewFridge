@@ -39,13 +39,14 @@ export function useSpoonacular() {
             const res = await fetch(url)
 
             if (!res.ok) {
-                throw new Error(`API Error: ${res.statusText}`)
+                const errText = await res.text()
+                throw new Error(`API Error: ${res.status} ${res.statusText} - ${errText}`)
             }
 
             recipes.value = await res.json()
         } catch (err) {
             console.error('Spoonacular API Error:', err)
-            error.value = "無法取得食譜，請稍後再試。"
+            error.value = `無法取得食譜: ${err.message}`
         } finally {
             loading.value = false
         }

@@ -1141,12 +1141,19 @@ const { compressFile } = useImageCompression();
 
             const returnToSidebar = () => {
                 currentPage.value = 'home';
-                setTimeout(() => {
-                    cleanupBackdrops(); // 確保沒有殘留遮罩
-                    const el = document.getElementById("sidebar");
-                    const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
-                    inst.show();
-                }, 50);
+                // 使用 nextTick 確保 Vue 渲染完成後再開啟側邊欄
+                nextTick(() => {
+                    setTimeout(() => {
+                        const el = document.getElementById("sidebar");
+                        if (!el) return;
+                        // 優先使用現有實例，避免創建重複實例
+                        let inst = bootstrap.Offcanvas.getInstance(el);
+                        if (!inst) {
+                            inst = new bootstrap.Offcanvas(el);
+                        }
+                        inst.show();
+                    }, 150); // 增加延遲確保頁面完全渲染
+                });
             };
 
             const handleNavigateFromToBuyList = (page) => {

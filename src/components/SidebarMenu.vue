@@ -22,6 +22,10 @@
           <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
           <span class="badge bg-warning text-dark rounded-pill" v-if="cartCount > 0">{{ cartCount }}</span>
         </button>
+        <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="$emit('go-to-page', 'recipes')">
+          <span class="text-success fw-bold"><i class="bi bi-lightbulb me-2"></i>食譜靈感</span>
+          <i class="bi bi-chevron-right small text-muted"></i>
+        </button>
       </div>
       
       <hr class="sidebar-divider">

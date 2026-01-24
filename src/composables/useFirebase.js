@@ -12,9 +12,12 @@ import {
     deleteDoc,
     enableIndexedDbPersistence
 } from 'firebase/firestore'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
 
 let appFirebase = null
 let db = null
+let auth = null
 
 export function useFirebase() {
     const isConfigured = ref(false)
@@ -24,11 +27,15 @@ export function useFirebase() {
     const currentUserName = ref("")
     const setupError = ref("")
     const isLoading = ref(false)
+    const currentUser = ref(null)
 
     const familySettings = ref({
         familyName: "我的家庭",
         members: []
     })
+
+    // Items state
+    const items = ref([])
 
     const checkConfig = async () => {
         const storedConfig = localStorage.getItem("fridge_firebase_config")
@@ -53,6 +60,13 @@ export function useFirebase() {
             if (!appFirebase) {
                 appFirebase = initializeApp(config)
                 db = getFirestore(appFirebase)
+                auth = getAuth(appFirebase)
+
+                // Auth state listener
+                onAuthStateChanged(auth, (user) => {
+                    currentUser.value = user
+                })
+
                 // 啟用離線持久化
                 enableIndexedDbPersistence(db).catch((err) => {
                     if (err.code == 'failed-precondition') {
@@ -173,7 +187,216 @@ export function useFirebase() {
         }
     }
 
+    // ==================== Google Auth ====================
+
+    const linkGoogleAccount = async () => {
+        if (!auth) return
+        const provider = new GoogleAuthProvider()
+        try {
+            await signInWithPopup(auth, provider)
+            return true
+        } catch (error) {
+            console.error("Auth Error:", error)
+            throw error
+        }
+    }
+
+    const unlinkGoogleAccount = async () => {
+        if (!auth) return
+        try {
+            await signOut(auth)
+            return true
+        } catch (error) {
+            console.error("SignOut Error", error)
+            throw error
+        }
+    }
+
+    // ==================== Realtime Listeners ====================
+
+    const startItemsListener = (onUpdate) => {
+        if (!db) return null
+
+        return onSnapshot(collection(db, "fridge_items"), (snapshot) => {
+            items.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+            isLoading.value = false
+            if (onUpdate) onUpdate(items.value)
+        })
+    }
+
+    const startFamilyListener = (onUpdate) => {
+        if (!db) return null
+
+        return onSnapshot(doc(db, "family_metadata", "general"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data()
+                familySettings.value.familyName = data.familyName
+                familySettings.value.members = data.members || []
+
+                if (data.latest_rename) {
+                    const { from, to, at } = data.latest_rename
+                    const now = Date.now()
+                    if (from === currentUserName.value && (now - at < 60000)) {
+                        currentUserName.value = to
+                        localStorage.setItem("fridge_user_name", to)
+                    }
+                }
+
+                if (onUpdate) onUpdate(familySettings.value)
+            }
+        })
+    }
+
+    // ==================== Items CRUD ====================
+
+    const addItem = async (itemData) => {
+        if (!db) throw new Error("Database not initialized")
+
+        try {
+            const docRef = await addDoc(collection(db, "fridge_items"), {
+                ...itemData,
+                createdAt: new Date()
+            })
+            return docRef.id
+        } catch (e) {
+            console.error("Add Item Error:", e)
+            throw e
+        }
+    }
+
+    const updateItem = async (id, itemData) => {
+        if (!db) throw new Error("Database not initialized")
+
+        try {
+            await updateDoc(doc(db, "fridge_items", id), {
+                ...itemData,
+                updatedAt: new Date()
+            })
+            return true
+        } catch (e) {
+            console.error("Update Item Error:", e)
+            throw e
+        }
+    }
+
+    const deleteItem = async (id) => {
+        if (!db) throw new Error("Database not initialized")
+
+        try {
+            await deleteDoc(doc(db, "fridge_items", id))
+            return true
+        } catch (e) {
+            console.error("Delete Item Error:", e)
+            throw e
+        }
+    }
+
+    const takeOutItem = async (item, takeQty) => {
+        if (!db || !item) return false
+
+        const currentQty = parseInt(item.quantity)
+
+        // 全部取出
+        if (takeQty >= currentQty) {
+            try {
+                await updateDoc(doc(db, "fridge_items", item.id), {
+                    quantity: 0,
+                    batches: [],
+                    storedDate: "",
+                    expiryDate: "",
+                    noExpiry: true,
+                    updatedAt: new Date()
+                })
+                return true
+            } catch (e) {
+                console.error(e)
+                return false
+            }
+        }
+
+        // 部分取出
+        try {
+            let batches = item.batches ? [...item.batches] : [{
+                storedDate: item.storedDate,
+                expiryDate: item.expiryDate,
+                noExpiry: item.noExpiry,
+                quantity: currentQty,
+                image: item.image
+            }]
+
+            // 按過期日排序
+            batches.sort((a, b) => {
+                const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31")
+                const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31")
+                if (dateA < dateB) return -1
+                if (dateA > dateB) return 1
+                const storeA = a.storedDate || "9999-12-31"
+                const storeB = b.storedDate || "9999-12-31"
+                if (storeA < storeB) return -1
+                if (storeA > storeB) return 1
+                return 0
+            })
+
+            let remainingToTake = takeQty
+            const newBatches = []
+
+            for (let batch of batches) {
+                if (remainingToTake <= 0) {
+                    newBatches.push(batch)
+                    continue
+                }
+
+                let batchQty = parseInt(batch.quantity)
+
+                if (batchQty > remainingToTake) {
+                    batch.quantity = batchQty - remainingToTake
+                    remainingToTake = 0
+                    newBatches.push(batch)
+                } else {
+                    remainingToTake -= batchQty
+                }
+            }
+
+            const result = recalculateItemFromBatches(newBatches, item.owners)
+            await updateDoc(doc(db, "fridge_items", item.id), { ...result })
+
+            return true
+        } catch (e) {
+            console.error(e)
+            return false
+        }
+    }
+
+    const batchDeleteItems = async (ids) => {
+        if (!db) throw new Error("Database not initialized")
+
+        try {
+            const promises = ids.map(id => deleteDoc(doc(db, "fridge_items", id)))
+            await Promise.all(promises)
+            return true
+        } catch (e) {
+            console.error("Batch Delete Error:", e)
+            throw e
+        }
+    }
+
+    const batchUpdateItems = async (updates) => {
+        if (!db) throw new Error("Database not initialized")
+
+        try {
+            const promises = updates.map(({ id, data }) =>
+                updateDoc(doc(db, "fridge_items", id), data)
+            )
+            await Promise.all(promises)
+            return true
+        } catch (e) {
+            console.error("Batch Update Error:", e)
+            throw e
+        }
+    }
+
     const getDb = () => db
+    const getAuth = () => auth
     const getCollection = (name) => collection(db, name)
     const getDoc$ = (collectionName, docId) => doc(db, collectionName, docId)
 
@@ -184,28 +407,49 @@ export function useFirebase() {
         inputConfigStr,
         inputUserName,
         currentUserName,
+        currentUser,
         setupError,
         isLoading,
         familySettings,
+        items,
 
-        // Methods
+        // Setup Methods
         checkConfig,
         initFirebase,
         saveInitialConfig,
+
+        // Family Methods
         updateFamilyName,
         updateUserName,
         resetApp,
 
+        // Google Auth
+        linkGoogleAccount,
+        unlinkGoogleAccount,
+
+        // Listeners
+        startItemsListener,
+        startFamilyListener,
+
+        // Items CRUD
+        addItem,
+        updateItem,
+        deleteItem,
+        takeOutItem,
+        batchDeleteItems,
+        batchUpdateItems,
+
         // Firebase utils
         getDb,
+        getAuth,
         getCollection,
         getDoc: getDoc$,
 
         // Firestore exports for direct use
         onSnapshot,
-        addDoc,
+        addDoc: addDoc,
         updateDoc: updateDoc,
-        deleteDoc,
+        deleteDoc: deleteDoc,
         setDoc,
         getDoc: getDoc
     }

@@ -98,6 +98,13 @@
         @update:settings="handleSettingsChange"
       />
 
+      <!-- RECIPE PAGE -->
+      <RecipeView 
+        v-if="!isLoading && currentPage==='recipes'" 
+        :current-items="items" 
+        @go-back="goHome"
+      />
+
       <!-- UPDATE INFO PAGE -->
       <UpdateInfoPage
         v-if="!isLoading && currentPage==='update-info'"
@@ -184,6 +191,7 @@ const ShoppingCartPage = defineAsyncComponent(() => import('./components/Shoppin
 const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
 const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
+const RecipeView = defineAsyncComponent(() => import('./components/RecipeView.vue'))
 
 // Composables
 import { useBootstrap } from './composables/useBootstrap'

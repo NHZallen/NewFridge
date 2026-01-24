@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
-import obfuscator from 'vite-plugin-javascript-obfuscator'
 
 export default defineConfig({
   plugins: [
@@ -54,20 +53,7 @@ export default defineConfig({
           }
         ]
       }
-    }),
-    // 程式碼混淆，只在 production 模式啟用以免影響開發速度
-    process.env.NODE_ENV === 'production' ? obfuscator({
-      compact: true,
-      controlFlowFlattening: true,
-      controlFlowFlatteningThreshold: 0.75,
-      numbersToExpressions: true,
-      simplify: true,
-      stringArray: true,
-      stringArrayThreshold: 0.75,
-      splitStrings: true,
-      splitStringsChunkLength: 10,
-      unicodeEscapeSequence: true
-    }) : null
+    })
   ],
   build: {
     sourcemap: false, // 禁用 Source Maps，讓別人無法還原原始碼

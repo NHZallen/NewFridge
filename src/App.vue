@@ -96,7 +96,6 @@
         @show-update-modal="showUpdateModal(true)"
         @reset-app="resetApp"
         @update:settings="handleSettingsChange"
-        @setup-push="handleSetupPush"
       />
 
       <!-- UPDATE INFO PAGE -->
@@ -171,7 +170,6 @@ import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
 import { initSecurity } from './utils/security'
-import { setupFCM, onForegroundMessage } from './utils/pushNotifications'
 // Bootstrap is now handled via useBootstrap composable
 
 // Components
@@ -472,22 +470,6 @@ const handleSettingsChange = (newSettings) => {
   saveSettings()
 }
 
-const handleSetupPush = async (vapidKey) => {
-  if (!appFirebase || !db) return
-  const token = await setupFCM(appFirebase, db, currentUserName.value, vapidKey)
-  if (token) {
-    settings.value.pushEnabled = true
-    saveSettings()
-    showToast("推送通知已啟動！")
-    
-    // 監聽前景訊息
-    onForegroundMessage(appFirebase, (payload) => {
-      showToast(`新訊息: ${payload.notification.title}`)
-    })
-  } else {
-    alert("啟動失敗，請檢查金鑰或權限設定。")
-  }
-}
 
 const loadSettings = () => {
   const saved = localStorage.getItem("fridge_settings_v1")
@@ -877,12 +859,6 @@ onMounted(() => {
   loadSettings()
   checkConfig()
   
-  // 如果已經有金鑰，嘗試初始化推送
-  const savedVapid = localStorage.getItem('fcm_vapid_key')
-  if (savedVapid && settings.value.pushEnabled) {
-    setTimeout(() => handleSetupPush(savedVapid), 2000)
-  }
-
   window.addEventListener('scroll', () => {
     showScrollTop.value = window.scrollY > 300
   })

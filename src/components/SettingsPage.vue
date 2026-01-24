@@ -117,44 +117,6 @@
       </div>
     </div>
 
-    <!-- 推送通知設定 -->
-    <div class="card section-card mb-3">
-      <div class="card-body">
-        <div class="d-flex align-items-center gap-2 mb-3">
-          <i class="bi bi- megaphone text-warning"></i>
-          <div class="fw-bold">推送通知 (Firebase FCM)</div>
-        </div>
-        
-        <p class="text-muted small mb-3">
-          啟用推送通知後，您可以在其他裝置收到提醒。需先在 Firebase Console 取得 VAPID 金鑰。
-        </p>
-
-        <div class="mb-3">
-          <label class="form-label small fw-bold text-muted">VAPID 公鑰 (Public Key)</label>
-          <input 
-            type="text" 
-            class="form-control form-control-sm" 
-            v-model="fcmVapidKeyTemp" 
-            placeholder="從 Firebase 雲端通訊設定取得"
-          >
-        </div>
-
-        <button 
-          class="btn btn-warning w-100 rounded-pill d-flex align-items-center justify-content-center gap-2 fw-bold"
-          :disabled="!fcmVapidKeyTemp"
-          @click="setupPush"
-        >
-          <i class="bi bi-bell-fill"></i>
-          啟用此裝置推送通知
-        </button>
-
-        <div v-if="settings.pushEnabled" class="mt-2 text-center">
-          <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-            <i class="bi bi-check-circle-fill me-1"></i> 推送功能已開啟
-          </span>
-        </div>
-      </div>
-    </div>
 
     <!-- 版本資訊 -->
     <div class="card section-card mb-3">
@@ -240,8 +202,7 @@ const emit = defineEmits([
   'save-family-name',
   'edit-user-name',
   'reset-app',
-  'update:settings',
-  'setup-push'
+  'update:settings'
 ])
 
 // 內部狀態
@@ -264,13 +225,5 @@ const saveFamilyName = () => {
   if (!editFamilyNameTemp.value.trim()) return
   emit('save-family-name', editFamilyNameTemp.value.trim())
   isEditingFamilyName.value = false
-}
-
-const fcmVapidKeyTemp = ref(localStorage.getItem('fcm_vapid_key') || '')
-
-const setupPush = () => {
-  if (!fcmVapidKeyTemp.value.trim()) return
-  localStorage.setItem('fcm_vapid_key', fcmVapidKeyTemp.value.trim())
-  emit('setup-push', fcmVapidKeyTemp.value.trim())
 }
 </script>

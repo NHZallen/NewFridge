@@ -1,5 +1,5 @@
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, getDoc } from "firebase/firestore";
 
 export async function setupFCM(app, db, userId, vapidKey) {
     if (!vapidKey) return null;
@@ -25,13 +25,27 @@ export async function setupFCM(app, db, userId, vapidKey) {
 
             // 將 Token 存入 Firestore (關聯到家庭或使用者)
             const settingsRef = doc(db, "family_metadata", "general");
+
+            // 先讀取舊的，把跟目前一樣 Token 的移除 (避免重複但時間不同)
+            const docSnap = await getDoc(settingsRef);
+            let currentTokens = [];
+
+            if (docSnap.exists() && docSnap.data().fcmTokens) {
+                currentTokens = docSnap.data().fcmTokens;
+                // 移除已存在的此 Token (無論舊的使用者是誰，都視為更新)
+                currentTokens = currentTokens.filter(t => t.token !== currentToken);
+            }
+
+            // 加入新的
+            currentTokens.push({
+                token: currentToken,
+                userId: userId,
+                updatedAt: new Date().toISOString(),
+                device: navigator.userAgent
+            });
+
             await updateDoc(settingsRef, {
-                fcmTokens: arrayUnion({
-                    token: currentToken,
-                    userId: userId,
-                    updatedAt: new Date().toISOString(),
-                    device: navigator.userAgent
-                })
+                fcmTokens: currentTokens
             });
 
             return currentToken;

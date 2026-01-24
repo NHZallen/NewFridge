@@ -3,7 +3,7 @@
     <!-- 頂部列 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-light border rounded-pill" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
+        <button class="btn btn-light border rounded-pill" @click="$emit('toggle-sidebar')" aria-controls="sidebar">
           <i class="bi bi-list"></i>
         </button>
         <div class="d-flex flex-column">

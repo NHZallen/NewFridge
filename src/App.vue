@@ -54,6 +54,7 @@
                 @add-page="goToAddPage"
                 @open-preview="openPreview"
                 @scroll-to-top="scrollToTop"
+                @toggle-sidebar="toggleSidebar"
             />
     
             <!-- ADD / EDIT PAGE -->
@@ -1073,6 +1074,15 @@ const { compressFile } = useImageCompression();
                 if(el) {
                     const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
                     inst.show();
+                }
+            };
+            
+            // 手動切換側邊欄 (解決 Bootstrap 與 Vue 衝突導致的開啟即關閉問題)
+            const toggleSidebar = () => {
+                const el = document.getElementById("sidebar");
+                if(el) {
+                    const inst = bootstrap.Offcanvas.getOrCreateInstance(el);
+                    inst.toggle();
                 }
             };
 

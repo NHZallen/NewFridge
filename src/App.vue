@@ -28,7 +28,18 @@
                         </div>
                         <div v-if="setupError" class="alert alert-danger py-2 mb-3">{{ setupError }}</div>
                         <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" :disabled="isSettingUp">
-                            {{ isSettingUp ? '連線中...' : '開始使用' }}
+                            {{ isSettingUp ? '處理中...' : '開始使用' }}
+                        </button>
+
+                        <div class="d-flex align-items-center my-3">
+                            <hr class="flex-grow-1">
+                            <span class="mx-2 text-muted small">或</span>
+                            <hr class="flex-grow-1">
+                        </div>
+
+                        <button type="button" class="btn btn-outline-dark w-100 rounded-pill py-2 fw-bold d-flex align-items-center justify-content-center gap-2" 
+                                @click="setupWithGoogle" :disabled="isSettingUp">
+                            <i class="bi bi-google"></i> 使用 Google 帳號登入
                         </button>
                     </form>
                 </div>
@@ -693,6 +704,71 @@ const { compressFile } = useImageCompression();
                     showToast("已解除綁定");
                 } catch (error) {
                     console.error("SignOut Error", error);
+                }
+            };
+
+            // 初始設定時使用 Google 登入
+            const setupWithGoogle = async () => {
+                setupError.value = "";
+                
+                // 1. 驗證並解析 Config
+                if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
+                    setupError.value = "請先貼上 Firebase 設定碼";
+                    return;
+                }
+
+                isSettingUp.value = true;
+
+                try {
+                    let cleanStr = inputConfigStr.value.trim();
+                    cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '');
+                    cleanStr = cleanStr.replace(/;$/, '');
+                    
+                    const configObj = (new Function(`return ${cleanStr}`))();
+                    if (!configObj.projectId) throw new Error("無效的設定內容");
+
+                    // 2. 初始化 Firebase (如果尚未初始化)
+                    if (!appFirebase) {
+                        appFirebase = initializeApp(configObj);
+                        db = getFirestore(appFirebase);
+                        auth = getAuth(appFirebase);
+                        
+                        // 確保監聽器掛載
+                        onAuthStateChanged(auth, (user) => {
+                            currentUser.value = user;
+                        });
+                    }
+
+                    // 3. 呼叫 Google 登入
+                    const provider = new GoogleAuthProvider();
+                    const result = await signInWithPopup(auth, provider);
+                    const user = result.user;
+
+                    // 4. 使用 Google 資料作為使用者名稱
+                    const googleName = user.displayName || user.email.split('@')[0];
+                    currentUserName.value = googleName;
+
+                    // 5. 儲存設定
+                    localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj));
+                    localStorage.setItem("fridge_user_name", googleName);
+
+                    // 6. 進入 App
+                    isConfigured.value = true;
+                    isLoading.value = true;
+                    await checkAndJoinFamily(googleName);
+                    startListeners();
+                    
+                    showToast(`歡迎回來，${googleName}`);
+
+                } catch (e) {
+                    console.error(e);
+                    setupError.value = "Google 登入或設定失敗：" + e.message;
+                    // Reset if failed
+                    if (appFirebase && !isConfigured.value) {
+                         // 這裡比較難完全重置 firebase instance，但至少讓 UI 狀態回覆
+                    }
+                } finally {
+                    isSettingUp.value = false;
                 }
             };
 

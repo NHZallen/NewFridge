@@ -334,11 +334,11 @@
     
                     <!-- 採買區塊 -->
                     <div class="d-grid gap-2 mb-4">
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('to-buy-list')" data-bs-dismiss="offcanvas">
                             <span class="text-info fw-bold"><i class="bi bi-clipboard-check me-2"></i>待購買清單</span>
                             <span class="badge bg-info text-dark rounded-pill" v-if="toBuyList.length > 0">{{ toBuyList.length }}</span>
                         </button>
-                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')">
+                         <button class="btn btn-light text-start d-flex justify-content-between align-items-center" @click="goPageFromSidebar('shopping-cart')" data-bs-dismiss="offcanvas">
                             <span class="text-warning fw-bold"><i class="bi bi-cart me-2"></i>購物車</span>
                             <span class="badge bg-warning text-dark rounded-pill" v-if="cartList.length > 0">{{ cartList.length }}</span>
                         </button>
@@ -792,18 +792,6 @@ const { compressFile } = useImageCompression();
                 window.addEventListener('scroll', () => {
                     showScrollTop.value = window.scrollY > 300;
                 });
-
-                // 監聽側邊欄關閉事件，確保遮罩完全清除
-                const sidebarEl = document.getElementById('sidebar');
-                if (sidebarEl) {
-                    sidebarEl.addEventListener('hidden.bs.offcanvas', () => {
-                        // 強制清理 body 樣式和殘留 backdrop
-                        document.body.style.overflow = '';
-                        document.body.style.paddingRight = '';
-                        document.body.classList.remove('modal-open');
-                        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove());
-                    });
-                }
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {
@@ -1036,28 +1024,7 @@ const { compressFile } = useImageCompression();
 
             // 強制關閉側邊欄並清理所有狀態
             // 強制關閉側邊欄並清理所有狀態
-            const closeSidebarCompletely = () => {
-                const el = document.getElementById("sidebar");
-                if (!el) return;
-                
-                const inst = bootstrap.Offcanvas.getInstance(el);
-                if (inst) {
-                    inst.hide();
-                } else {
-                    // Fallback for extreme cases (if instance lost but DOM remains)
-                    el.classList.remove('show', 'showing');
-                    el.removeAttribute('aria-modal');
-                    el.removeAttribute('role');
-                    el.setAttribute('aria-hidden', 'true');
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
-                    document.querySelectorAll('.offcanvas-backdrop').forEach(b => b.remove());
-                }
-            };
-
             const selectZoneFromSidebar = (zone) => {
-                closeSidebarCompletely();
                 filterZone.value = zone;
                 isSelectionMode.value = false;
                 selectedHomeIds.value = [];
@@ -1112,14 +1079,10 @@ const { compressFile } = useImageCompression();
             };
 
             const goSettingsFromSidebar = () => {
-                closeSidebarCompletely();
                 currentPage.value = "settings";
-                // 額外強制解鎖
-                document.body.style.overflow = 'auto';
             };
             
             const goPageFromSidebar = (page) => {
-                closeSidebarCompletely();
                 currentPage.value = page;
             };
 

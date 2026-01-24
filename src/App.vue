@@ -19,8 +19,8 @@
                 <div class="card-body">
                     <form @submit.prevent="saveInitialConfig">
                         
-                        <!-- 手動輸入設定 (只有在沒有環境變數時顯示) -->
-                        <div v-if="!hasEnvConfig">
+                        <!-- 手動輸入設定 (只有在沒有系統預設時顯示) -->
+                        <div v-if="!hasSystemConfig">
                             <div class="mb-3">
                                 <label class="form-label fw-bold">1. Firebase 設定碼</label>
                                 <textarea class="form-control font-monospace small" rows="5" v-model="inputConfigStr" placeholder='請貼上 const firebaseConfig = { ... }' required></textarea>
@@ -55,8 +55,8 @@
                             <i class="bi bi-google"></i> 使用 Google 帳號登入
                         </button>
                         
-                        <div v-if="hasEnvConfig" class="text-center mt-3">
-                            <button type="button" class="btn btn-link text-muted small text-decoration-none" @click="inputConfigStr = 'manual'; hasEnvConfig = false">
+                        <div v-if="hasSystemConfig" class="text-center mt-3">
+                            <button type="button" class="btn btn-link text-muted small text-decoration-none" @click="inputConfigStr = 'manual'; hasSystemConfig = false">
                                 手動輸入設定碼
                             </button>
                         </div>
@@ -505,6 +505,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { initializeApp } from 'firebase/app'
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { firebaseConfig as codeConfig } from './firebaseConfig.js'
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION, ZONE_COLORS as ZONE_COLORS_CONST, ZONE_NAMES, LONG_PRESS_DURATION } from './utils/constants'
 import { getTodayStr, getDays, addDaysToDate, parseLocalDate } from './utils/dateUtils'
@@ -546,8 +547,23 @@ const { compressFile } = useImageCompression();
                 appId: import.meta.env.VITE_FIREBASE_APP_ID
             };
             
-            // 判斷是否所有必要欄位都有值 (初始化一次即可，改為 ref 允許手動切換)
-            const hasEnvConfig = ref(!!(envConfig.apiKey && envConfig.projectId && envConfig.appId));
+            // 判斷是否有有效的設定 (Code Config > Env Config)
+            const getEffectiveConfig = () => {
+                // 1. 優先檢查程式碼設定 (firebaseConfig.js)
+                if (codeConfig && codeConfig.apiKey && codeConfig.projectId) {
+                    return codeConfig;
+                }
+                // 2. 檢查環境變數
+                if (envConfig.apiKey && envConfig.projectId) {
+                    return envConfig;
+                }
+                return null;
+            };
+
+            const systemConfig = getEffectiveConfig();
+            
+            // 判斷是否偵測到系統設定
+            const hasSystemConfig = ref(!!systemConfig);
 
             const items = ref([]);
 // ... (lines 472-575 match original context, skipping for brevity in replacement search) ... 
@@ -749,8 +765,8 @@ const { compressFile } = useImageCompression();
 
                 try {
                     // 1. 取得設定
-                    if (hasEnvConfig.value) {
-                         configObj = envConfig;
+                    if (hasSystemConfig.value) {
+                         configObj = systemConfig;
                     } else {
                         // 手動輸入模式
                         if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {

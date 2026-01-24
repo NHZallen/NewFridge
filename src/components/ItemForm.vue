@@ -184,7 +184,7 @@
 <script>
 import { ref, computed, watch } from 'vue'
 import { getFirestore, doc, collection, addDoc, updateDoc } from 'firebase/firestore'
-import { compressFile } from '../composables/useImageCompression.js'
+import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
 
@@ -202,6 +202,9 @@ export default {
     const formItem = ref({ ...props.initialItem })
     const isCompressing = ref(false)
     const isUploading = ref(false)
+
+    // 使用 composable 取得 compressFile
+    const { compressFile } = useImageCompression()
 
     // 重置 formItem 當 prop 改變
     watch(() => props.initialItem, (newVal) => {

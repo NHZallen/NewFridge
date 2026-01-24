@@ -370,254 +370,19 @@
             </div>
             
             <!-- TO BUY LIST PAGE (待購買清單) -->
-            <div v-if="!isLoading && currentPage==='to-buy-list'" class="bento-mode">
-        
-        <!-- 背景動畫層 -->
-        <div class="bento-bg-layer">
-            <div class="mesh-blob blob-1"></div>
-            <div class="mesh-blob blob-2"></div>
-            <div class="mesh-blob blob-3"></div>
-        </div>
-    
-        <!-- 頂部導航 (透明 Header) -->
-        <header class="bento-header">
-            <button class="glass-icon-btn" @click="returnToSidebar">
-                <span class="material-symbols-outlined">arrow_back</span>
-            </button>
-            <h1 class="m-0 fs-5 fw-bold" style="font-family: 'Plus Jakarta Sans', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">待購買清單</h1>
-            <div style="width: 40px;"></div>
-        </header>
-    
-        <div class="bento-container">
-            <!-- 空狀態 -->
-            <div v-if="toBuyList.length === 0" class="bento-hero d-flex flex-column align-items-center justify-content-center py-5">
-                <div class="hero-icon-box bg-info bg-opacity-50">
-                    <span class="material-symbols-outlined text-white fs-2">playlist_add_check</span>
-                </div>
-                <h2 class="fw-bold mb-1">清單是空的</h2>
-                <p class="text-muted small">冰箱缺什麼了嗎？快去新增吧！</p>
-            </div>
-    
-            <div v-else>
-                <!-- Hero 卡片 (總覽) -->
-                <div class="bento-hero">
-                    <!-- 裝飾光暈 -->
-                    <div style="position: absolute; top: -30px; left: -30px; width: 100px; height: 100px; background: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(59,130,246,0.2)); filter: blur(40px); border-radius: 50%;"></div>
-                    
-                    <div class="hero-icon-box" style="background: linear-gradient(135deg, #0891b2, #155e75);">
-                        <span class="material-symbols-outlined text-white fs-1">list_alt</span>
-                    </div>
-                    <h2 class="display-6 fw-bold mb-1" style="font-family: 'Plus Jakarta Sans', sans-serif;">{{ toBuyList.length }} 項待買</h2>
-                    <p class="text-muted fw-bold small">採買前記得確認喔！</p>
-                </div>
-    
-                <!-- 條列式清單 (List Layout) -->
-                <div class="d-flex flex-column gap-3">
-                    <div v-for="item in toBuyList" :key="item.id" 
-                         class="bento-card d-flex align-items-center p-3"
-                         @click="toggleSelection(selectedToBuyIds, item.id)"> <!-- 點擊卡片任何地方都可以勾選 -->
-                        
-                        <!-- 1. Checkbox (改為左側顯示，符合清單邏輯) -->
-                        <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
-                            <input type="checkbox" class="form-check-input border-2" 
-                                   :value="item.id" v-model="selectedToBuyIds"
-                                   style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
-                        </div>
-    
-                        <!-- 2. 圖片 (圓角方形) -->
-                        <div class="bento-img-box ms-3 flex-shrink-0" 
-                             style="width: 64px; height: 64px; border-radius: 12px;"
-                             :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
-                             <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                <i class="bi bi-image fs-5"></i>
-                             </div>
-                        </div>
-    
-                        <!-- 3. 文字資訊 -->
-                        <div class="ms-3 flex-grow-1 min-w-0">
-                            <div class="d-flex align-items-center mb-1">
-                                <span class="zone-tag mb-0 me-2" :class="{
-                                    'zone-cold': item.zone === 'cold',
-                                    'zone-frozen': item.zone === 'frozen',
-                                    'zone-veggie': item.zone === 'veggie'
-                                }">{{ getZoneName(item.zone) }}</span>
-                            </div>
-                            <h3 class="fw-bold fs-6 text-truncate mb-0">{{ item.name }}</h3>
-                            <small class="text-secondary fw-bold" style="font-size: 0.75rem;">
-                                目前庫存: {{ item.quantity }}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    
-        <!-- 黑色懸浮島嶼底部操作列 (Action Island) -->
-        <div class="action-island-container" v-if="toBuyList.length > 0">
-             <div class="action-island">
-                <div class="island-text ms-2">
-                    <div>已選擇</div>
-                    <div class="fs-4">{{ selectedToBuyIds.length }} 項</div>
-                </div>
-                <div class="island-controls">
-                    <!-- 移除按鈕 -->
-                    <button class="island-trash-btn" 
-                            :disabled="selectedToBuyIds.length === 0"
-                            @click="removeFromToBuyList">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                    
-                    <!-- 放入購物車按鈕 -->
-                     <button class="island-action-btn" 
-                            :disabled="selectedToBuyIds.length === 0"
-                            @click="moveSelectedToCart">
-                        放入購物車
-                        <span class="material-symbols-outlined">add_shopping_cart</span>
-                    </button>
-                </div>
-             </div>
-        </div>
-    </div>
+            <ToBuyListPage
+                v-if="!isLoading && currentPage==='to-buy-list'"
+                :items="items"
+                @navigate="handleNavigateFromToBuyList"
+            />
     
             <!-- SHOPPING CART PAGE (購物車) - Bento/Glassmorphism Mode -->
-            <div v-if="!isLoading && currentPage==='shopping-cart'" class="bento-mode">
-                
-                <!-- 背景動畫層 -->
-                <div class="bento-bg-layer">
-                    <div class="mesh-blob blob-1"></div>
-                    <div class="mesh-blob blob-2"></div>
-                    <div class="mesh-blob blob-3"></div>
-                </div>
-    
-                <!-- 頂部導航 (透明 Header) -->
-                <header class="bento-header">
-                    <button class="glass-icon-btn" @click="returnToSidebar">
-                        <span class="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <h1 class="m-0 fs-5 fw-bold" style="font-family: 'Plus Jakarta Sans', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">購物車</h1>
-                    <div style="width: 40px;"></div> <!-- 佔位符保持標題置中 -->
-                </header>
-    
-                <div class="bento-container">
-                    <!-- 如果購物車是空的 -->
-                    <div v-if="cartList.length === 0 && cartFilterZone === 'all'" class="bento-hero d-flex flex-column align-items-center justify-content-center py-5">
-                        <div class="hero-icon-box bg-secondary opacity-50">
-                            <span class="material-symbols-outlined text-white fs-2">shopping_basket</span>
-                        </div>
-                        <h2 class="fw-bold mb-1">購物車是空的</h2>
-                        <p class="text-muted small">去把東西加入清單吧！</p>
-                    </div>
-    
-                    <div v-else>
-                        <!-- Hero 卡片 (總覽/分區統計) - 無論選擇哪個區域都顯示 -->
-                        <div class="bento-hero">
-                            <!-- 裝飾光暈 -->
-                            <div style="position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(147,51,234,0.2)); filter: blur(40px); border-radius: 50%;"></div>
-                            
-                            <div class="hero-icon-box">
-                                <span class="material-symbols-outlined text-white fs-1">{{ heroInfo.icon }}</span>
-                            </div>
-                            <h2 class="display-6 fw-bold mb-1" style="font-family: 'Plus Jakarta Sans', sans-serif;">{{ cartList.length }} 項商品</h2>
-                            <p class="text-muted fw-bold small">{{ heroInfo.label }} - {{ heroInfo.sub }}</p>
-                        </div>
-    
-                        <!-- 分類標籤與排序切換 (修改部分) -->
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <!-- 左側：分類篩選 (可滑動) -->
-                            <div class="d-flex gap-2 overflow-auto no-scrollbar pb-1 flex-grow-1 me-2">
-                                <button class="btn rounded-pill px-3 py-1 fw-bold border-0 shadow-sm flex-shrink-0" 
-                                        :class="cartFilterZone === 'all' ? 'chip-active' : 'btn-light bg-white bg-opacity-50 text-secondary'"
-                                        style="font-size: 0.85rem;"
-                                        @click="cartFilterZone = 'all'">全部</button>
-                                <button class="btn rounded-pill px-3 py-1 fw-bold border-0 shadow-sm flex-shrink-0" 
-                                        :class="cartFilterZone === 'cold' ? 'chip-active' : 'btn-light bg-white bg-opacity-50 text-secondary'"
-                                        style="font-size: 0.85rem;"
-                                        @click="cartFilterZone = 'cold'">冷藏</button>
-                                <button class="btn rounded-pill px-3 py-1 fw-bold border-0 shadow-sm flex-shrink-0" 
-                                        :class="cartFilterZone === 'frozen' ? 'chip-active' : 'btn-light bg-white bg-opacity-50 text-secondary'"
-                                        style="font-size: 0.85rem;"
-                                        @click="cartFilterZone = 'frozen'">冷凍</button>
-                                <button class="btn rounded-pill px-3 py-1 fw-bold border-0 shadow-sm flex-shrink-0" 
-                                        :class="cartFilterZone === 'veggie' ? 'chip-active' : 'btn-light bg-white bg-opacity-50 text-secondary'"
-                                        style="font-size: 0.85rem;"
-                                        @click="cartFilterZone = 'veggie'">蔬果</button>
-                            </div>
-                        </div>
-    
-                        <div v-if="cartList.length === 0" class="text-center text-muted py-5">
-                            <p>此分類沒有商品</p>
-                        </div>
-    
-                        <!-- 列表模式 -->
-                        <div class="d-flex flex-column gap-3">
-                            <div v-for="item in cartList" :key="item.id" 
-                                 class="bento-card d-flex align-items-center p-3"
-                                 @click="toggleSelection(selectedCartIds, item.id)">
-                                
-                                <!-- Checkbox -->
-                                <div class="form-check m-0 d-flex align-items-center justify-content-center" style="transform: scale(1.3);">
-                                    <input type="checkbox" class="form-check-input border-2" 
-                                           :value="item.id" v-model="selectedCartIds"
-                                           style="cursor: pointer; border-color: #cbd5e1;" @click.stop>
-                                </div>
-    
-                                <!-- 圖片 -->
-                                <div class="bento-img-box ms-3 flex-shrink-0" 
-                                     style="width: 64px; height: 64px; border-radius: 12px;"
-                                     :style="{ backgroundImage: item.image ? `url(${item.image})` : 'none' }">
-                                     <div v-if="!item.image" class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                        <i class="bi bi-image fs-5"></i>
-                                     </div>
-                                </div>
-    
-                                <!-- 文字資訊 -->
-                                <div class="ms-3 flex-grow-1 min-w-0">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <span class="zone-tag mb-0 me-2" :class="{
-                                            'zone-cold': item.zone === 'cold',
-                                            'zone-frozen': item.zone === 'frozen',
-                                            'zone-veggie': item.zone === 'veggie'
-                                        }">{{ getZoneName(item.zone) }}</span>
-                                    </div>
-                                    <h3 class="fw-bold fs-6 text-truncate mb-0">{{ item.name }}</h3>
-                                    <small class="text-secondary fw-bold" style="font-size: 0.75rem;">
-                                        數量: {{ item.quantity }}
-                                    </small>
-                                </div>
-    
-                                <!-- 存入按鈕 -->
-                                <button class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center ms-2 flex-shrink-0"
-                                        style="width: 42px; height: 42px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);"
-                                        @click.stop="startPurchase(item)">
-                                    <span class="material-symbols-outlined fs-5">input</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- 黑色懸浮島嶼底部操作列 (Action Island) -->
-                <div class="action-island-container" v-if="items.filter(i => i.shoppingStatus === 'inCart').length > 0">
-                     <div class="action-island">
-                        <div class="island-text ms-2">
-                            <div>已選擇</div>
-                            <div class="fs-4">{{ selectedCartIds.length }} 項</div>
-                        </div>
-                        <div class="island-controls">
-                            <button class="island-trash-btn" 
-                                    :disabled="selectedCartIds.length === 0"
-                                    @click="removeSelectedFromCart">
-                                <span class="material-symbols-outlined">delete</span>
-                            </button>
-                             <button class="island-action-btn" 
-                                    :disabled="selectedCartIds.length === 0"
-                                    @click="moveSelectedBackToBuy">
-                                放回待買
-                                <span class="material-symbols-outlined">shopping_cart</span>
-                            </button>
-                        </div>
-                     </div>
-                </div>
-            </div>
+            <ShoppingCartPage
+                v-if="!isLoading && currentPage==='shopping-cart'"
+                :items="items"
+                @navigate="handleNavigateFromCart"
+                @start-purchase="startPurchase"
+            />
     
             <!-- TAKE OUT PAGE -->
             <div v-if="!isLoading && currentPage==='takeout'" class="page-container">
@@ -965,6 +730,8 @@ import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION, ZONE_COLORS as ZONE_COLORS_CONST, ZONE_NAMES, LONG_PRESS_DURATION } from './utils/constants'
 import { getTodayStr, getDays, addDaysToDate, parseLocalDate } from './utils/dateUtils'
 import { useImageCompression } from './composables/useImageCompression'
+import ToBuyListPage from './components/ToBuyListPage.vue'
+import ShoppingCartPage from './components/ShoppingCartPage.vue'
 import * as bootstrap from 'bootstrap'
 
 const appVersion = APP_VERSION;
@@ -1907,6 +1674,20 @@ if (parseInt(targetItem.quantity) > 0) {
                 }, 50);
             };
 
+            const handleNavigateFromToBuyList = (page) => {
+                if (page === 'sidebar') {
+                    returnToSidebar();
+                } else if (page === 'shopping-cart') {
+                    currentPage.value = 'shopping-cart';
+                }
+            };
+
+            const handleNavigateFromCart = (page) => {
+                if (page === 'sidebar') {
+                    returnToSidebar();
+                }
+            };
+
             const toggleSelectionMode = () => {
                 isSelectionMode.value = !isSelectionMode.value;
                 selectedHomeIds.value = [];
@@ -1926,7 +1707,10 @@ if (parseInt(targetItem.quantity) > 0) {
                 let list = items.value;
                 
                 // 搜尋過濾
-                if (keyword) list = list.filter(i => String(i.name || "").includes(keyword));
+                if (keyword) {
+                    const lowerKeyword = keyword.toLowerCase();
+                    list = list.filter(i => (i.name || "").toLowerCase().includes(lowerKeyword));
+                }
                 
                 // 區域與庫存過濾邏輯
                 if (filterZone.value === 'nostock') {
@@ -1941,39 +1725,43 @@ if (parseInt(targetItem.quantity) > 0) {
                     }
                 }
                 
-                // 排序
-                const toSortKey = (it) => {
-                    const noExp = isNoExpiry(it);
-                    const exp = (!noExp && it.expiryDate) ? it.expiryDate : "9999-12-31";
-                    const stored = it.storedDate || "9999-12-31";
-                    return { exp, stored };
-                };
-
+                // 排序 (提取出 helper 避免在 sort 中重複宣告)
+                // 優化：直接比較字串，減少物件建立
                 return [...list].sort((a, b) => {
-                    const ka = toSortKey(a);
-                    const kb = toSortKey(b);
-                    if (ka.exp < kb.exp) return -1;
-                    if (ka.exp > kb.exp) return 1;
-                    if (ka.stored < kb.stored) return -1;
-                    if (ka.stored > kb.stored) return 1;
+                    const getSortDate = (it) => {
+                         if (isNoExpiry(it)) return "9999-12-31";
+                         return it.expiryDate || "9999-12-31";
+                    };
+                    
+                    const dateA = getSortDate(a);
+                    const dateB = getSortDate(b);
+                    
+                    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+                    
+                    const storeA = a.storedDate || "9999-12-31";
+                    const storeB = b.storedDate || "9999-12-31";
+                    
+                    if (storeA !== storeB) return storeA < storeB ? -1 : 1;
+                    
                     return 0;
                 });
             });
 
             // --- 購物清單邏輯 ---
+            // 使用 memoized filter (雖然 Vue computed 已經有快取，但明確過濾條件有助於閱讀)
             const toBuyList = computed(() => {
                 return items.value.filter(i => i.shoppingStatus === 'toBuy');
             });
 
             // 修改 computed 屬性，加入分類過濾
             const cartList = computed(() => {
-                let list = items.value.filter(i => i.shoppingStatus === 'inCart');
+                const inCart = items.value.filter(i => i.shoppingStatus === 'inCart');
                 
-                if (cartFilterZone.value !== 'all') {
-                    list = list.filter(i => (i.zone || 'cold') === cartFilterZone.value);
+                if (cartFilterZone.value === 'all') {
+                    return inCart;
                 }
                 
-                return list;
+                return inCart.filter(i => (i.zone || 'cold') === cartFilterZone.value);
             });
 
             // 新增：Hero 卡片顯示邏輯

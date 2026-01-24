@@ -9,7 +9,8 @@ import {
     setDoc,
     updateDoc,
     addDoc,
-    deleteDoc
+    deleteDoc,
+    enableIndexedDbPersistence
 } from 'firebase/firestore'
 
 let appFirebase = null
@@ -52,6 +53,14 @@ export function useFirebase() {
             if (!appFirebase) {
                 appFirebase = initializeApp(config)
                 db = getFirestore(appFirebase)
+                // 啟用離線持久化
+                enableIndexedDbPersistence(db).catch((err) => {
+                    if (err.code == 'failed-precondition') {
+                        console.warn('多個標籤頁同時開啟，持久化僅能在一個標籤頁生效')
+                    } else if (err.code == 'unimplemented') {
+                        console.warn('瀏覽器不支援持久化')
+                    }
+                });
             }
 
             currentUserName.value = userName

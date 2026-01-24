@@ -822,16 +822,10 @@ const { compressFile } = useImageCompression();
                 });
             });
 
-            // 監聽設定完成狀態，當介面渲染後再綁定 Sidebar 事件
+            // 監聽設定完成狀態
             watch(isConfigured, (newVal) => {
-                if (newVal) {
-                    nextTick(() => {
-                        const sidebarEl = document.getElementById('sidebar');
-                        if (sidebarEl) {
-                            sidebarEl.addEventListener('hidden.bs.offcanvas', cleanupBackdrops);
-                        }
-                    });
-                }
+                // 不需要額外綁定事件，Bootstrap 原生行為已經足夠
+                // 我們只在 currentPage 變化時強制介入清理
             });
             
             watch(() => settings.value.updateNotifyEnabled, () => {

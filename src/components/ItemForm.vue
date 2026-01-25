@@ -342,33 +342,10 @@ export default {
     const handleDelete = async () => {
         if (!confirm("確定要永久刪除此物品嗎？此操作無法復原。")) return;
         
-        isUploading.value = true; // Use uploading flag to disable buttons
+        isUploading.value = true;
         try {
-            // 1. Clean up images from Storage
-            const itemToDelete = props.allItems.find(i => i.id === formItem.value.id);
-            if (itemToDelete && itemToDelete.batches) {
-                const uniqueImages = new Set();
-                
-                // Add main image if exists
-                 if (itemToDelete.image) uniqueImages.add(itemToDelete.image);
-                 
-                // Add batch images
-                itemToDelete.batches.forEach(b => {
-                    if (b.image) uniqueImages.add(b.image);
-                });
-
-                // Delete all unique Storage images
-                const deletePromises = Array.from(uniqueImages).map(url => deleteImage(url));
-                await Promise.all(deletePromises);
-            }
-            
-            // 2. Delete document from Firestore
-            // Note: We use the logic from parent if we just emit, but here we can do it directly or emit.
-            // Original code emitted 'delete-item', which presumably handles Firestore delete.
-            // But to ensure we don't leave orphan files if the parent implementation changed, 
-            // we handled storage deletion here first.
+            // No manual storage cleanup here. Delegating to App.vue via event.
             emit('delete-item', formItem.value.id);
-            
         } catch(e) {
             console.error("Delete error:", e);
             alert("刪除時發生錯誤，請稍後再試");
@@ -404,7 +381,8 @@ export default {
 
             // Upload new image if exists
             if (!formItem.value.useExistingImage && pendingImageBlob.value) {
-                finalImageUrl = await uploadImage(pendingImageBlob.value);
+                // Pass item name as prefix for better organization
+                finalImageUrl = await uploadImage(pendingImageBlob.value, formItem.value.name);
             }
 
             const expiryDateClean = formItem.value.noExpiry ? "" : (formItem.value.expiryDate || "");
@@ -420,200 +398,191 @@ export default {
                 addedAt: Date.now()
             };
 
-            if (formItem.value.id) {
-                // === 編輯模式 (Edit Mode) ===
-                const oldItemRef = props.allItems.find(i => i.id === formItem.value.id);
-                let batches = oldItemRef && oldItemRef.batches ? [...oldItemRef.batches] : [];
-                
-                // Fallback for legacy items without batches
-                if (batches.length === 0 && oldItemRef && parseInt(oldItemRef.quantity) > 0) {
-                      batches = [{
-                        storedDate: oldItemRef.storedDate,
-                        expiryDate: oldItemRef.expiryDate,
-                        noExpiry: oldItemRef.noExpiry,
-                        quantity: parseInt(oldItemRef.quantity),
-                        image: oldItemRef.image || null,
-                        addedAt: 0
-                      }];
-                }
-
-                // Calculate current total quantity from batches
-                const currentTotal = batches.reduce((sum, b) => sum + parseInt(b.quantity || 0), 0);
-                const targetTotal = safeQuantity;
-                const diff = targetTotal - currentTotal;
-
-                if (diff > 0) {
-                     // === 增加數量 (Add Quantity) ===
-                     // Simply add a new batch with the difference
-                     const batchToAdd = {
-                        ...newBatch,
-                        quantity: diff // Override the quantity with the difference
-                     };
-                     batches.push(batchToAdd);
-
-                } else if (diff < 0) {
-                    // === 減少數量 (Reduce Quantity) ===
-                     // We need to remove 'abs(diff)' from existing batches
-                     // Logic similar to "Take Out": remove from oldest/first batches
-                     
-                     // Sort batches first (Expiry -> Stored) to ensure we remove from the "front"
-                     batches.sort((a, b) => {
-                        const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31");
-                        const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31");
-                        if (dateA < dateB) return -1;
-                        if (dateA > dateB) return 1;
-                        const storeA = a.storedDate || "9999-12-31";
-                        const storeB = b.storedDate || "9999-12-31";
-                        if (storeA < storeB) return -1;
-                        if (storeA > storeB) return 1;
-                        return 0;
-                    });
-
-                    let amountToRemove = Math.abs(diff);
-                    const newBatches = [];
-                    const imagesPotentiallyDeleted = new Set(); // Track images from removed/reduced batches
-
-                    for (let batch of batches) {
-                        if (amountToRemove <= 0) {
-                            newBatches.push(batch);
-                            continue;
-                        }
-
-                        let batchQty = parseInt(batch.quantity);
-                        
-                        // Track image for potential cleanup analysis
-                        if (batch.image) imagesPotentiallyDeleted.add(batch.image);
-
-                        if (batchQty > amountToRemove) {
-                            // Partial reduce
-                            batch.quantity = batchQty - amountToRemove;
-                            amountToRemove = 0;
-                            newBatches.push(batch);
-                        } else {
-                            // Full remove of this batch
-                            amountToRemove -= batchQty;
-                            // Do not push to newBatches
-                        }
-                    }
+            // === TRANSACTION ROLLBACK SAFETY ===
+            // We successfully uploaded the image (maybe). Now we try to write to Firestore.
+            // If Firestore write fails, we MUST delete the image we just uploaded to avoid orphans.
+            try {
+                if (formItem.value.id) {
+                    // === 編輯模式 (Edit Mode) ===
+                    const oldItemRef = props.allItems.find(i => i.id === formItem.value.id);
+                    let batches = oldItemRef && oldItemRef.batches ? [...oldItemRef.batches] : [];
                     
-                    batches = newBatches;
-                    
-                    // --- Image Cleanup Logic (similar to App.vue) ---
-                    // Identify images still in use
-                    const remainingImages = new Set();
-                    if (newBatch.image) remainingImages.add(newBatch.image); // The "new" image from form is definitely in use if we kept it? 
-                    // Wait, newBatch is only used if we ADDED, but here we reduced. 
-                    // However, the recalculate function will pick a new main image.
-                    
-                    batches.forEach(b => {
-                        if (b.image) remainingImages.add(b.image);
-                    });
-
-                    // Check which images are truly gone
-                    imagesPotentiallyDeleted.forEach(url => {
-                        if (!remainingImages.has(url)) {
-                             console.log("Edit Limit: Deleting unused image:", url);
-                             deleteImage(url);
-                        }
-                    });
-
-                } else {
-                    // === 數量不變 (No Quantity Change) ===
-                    // Just update the metadata of the FIRST batch or Main Item?
-                    // User might want to update the "image" or "expiry" of the *current* items.
-                    // Reasonable approach: Update the first batch's details to match form.
-                    if (batches.length > 0) {
-                         // We only update non-quantity fields here because quantity is total
-                         batches[0] = {
-                             ...batches[0],
-                             storedDate: newBatch.storedDate,
-                             expiryDate: newBatch.expiryDate,
-                             noExpiry: newBatch.noExpiry,
-                             image: newBatch.image // Update image if changed
-                         };
-                    }
-                }
-
-                const result = recalculateItemFromBatches(batches, ownersFinal);
-
-                await updateDoc(doc(db.value, "fridge_items", formItem.value.id), {
-                    name: formItem.value.name,
-                    zone: formItem.value.zone || 'cold',
-                    shoppingStatus: formItem.value.shoppingStatus,
-                    ...result,
-                    updatedAt: new Date()
-                });
-
-            } else {
-                // === 新增模式 (Add Mode) ===
-                const targetItem = matchedExistingItem.value;
-
-                if (targetItem) {
-                    // 合併到現有物品 (Merge)
-                    let batches = [];
-                    if (parseInt(targetItem.quantity) > 0) {
-                        batches = targetItem.batches ? [...targetItem.batches] : [{
-                            storedDate: targetItem.storedDate,
-                            expiryDate: targetItem.expiryDate,
-                            noExpiry: targetItem.noExpiry,
-                            quantity: parseInt(targetItem.quantity),
-                            image: targetItem.image || null,
+                    // Fallback for legacy items without batches
+                    if (batches.length === 0 && oldItemRef && parseInt(oldItemRef.quantity) > 0) {
+                        batches = [{
+                            storedDate: oldItemRef.storedDate,
+                            expiryDate: oldItemRef.expiryDate,
+                            noExpiry: oldItemRef.noExpiry,
+                            quantity: parseInt(oldItemRef.quantity),
+                            image: oldItemRef.image || null,
                             addedAt: 0
                         }];
+                    }
+
+                    // Calculate current total quantity from batches
+                    const currentTotal = batches.reduce((sum, b) => sum + parseInt(b.quantity || 0), 0);
+                    const targetTotal = safeQuantity;
+                    const diff = targetTotal - currentTotal;
+
+                    if (diff > 0) {
+                        // === 增加數量 (Add Quantity) ===
+                        const batchToAdd = {
+                            ...newBatch,
+                            quantity: diff 
+                        };
+                        batches.push(batchToAdd);
+
+                    } else if (diff < 0) {
+                        // === 減少數量 (Reduce Quantity) ===
+                        batches.sort((a, b) => {
+                            const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31");
+                            const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31");
+                            if (dateA < dateB) return -1;
+                            if (dateA > dateB) return 1;
+                            const storeA = a.storedDate || "9999-12-31";
+                            const storeB = b.storedDate || "9999-12-31";
+                            if (storeA < storeB) return -1;
+                            if (storeA > storeB) return 1;
+                            return 0;
+                        });
+
+                        let amountToRemove = Math.abs(diff);
+                        const newBatches = [];
+                        const imagesPotentiallyDeleted = new Set(); 
+
+                        for (let batch of batches) {
+                            if (amountToRemove <= 0) {
+                                newBatches.push(batch);
+                                continue;
+                            }
+
+                            let batchQty = parseInt(batch.quantity);
+                            
+                            if (batch.image) imagesPotentiallyDeleted.add(batch.image);
+
+                            if (batchQty > amountToRemove) {
+                                batch.quantity = batchQty - amountToRemove;
+                                amountToRemove = 0;
+                                newBatches.push(batch);
+                            } else {
+                                amountToRemove -= batchQty;
+                            }
+                        }
+                        
+                        batches = newBatches;
+                        
+                        // --- Image Cleanup Logic ---
+                        // Identify images still in use
+                        const remainingImages = new Set();
+                        if (newBatch.image) remainingImages.add(newBatch.image); 
+                        
+                        batches.forEach(b => {
+                            if (b.image) remainingImages.add(b.image);
+                        });
+
+                        // Delete images that are truly gone
+                        // NOTE: We do this asynchronously and don't block the UI for it
+                        imagesPotentiallyDeleted.forEach(url => {
+                            if (!remainingImages.has(url)) {
+                                console.log("Edit Limit: Deleting unused image:", url);
+                                deleteImage(url);
+                            }
+                        });
+
                     } else {
-                        // Target is "No Stock" / Archive.
-                        // Check if we need to clean up the old "Archive" image.
-                        // Condition: User is NOT using the existing image (uploading NEW one) AND there is an old image.
-                        if (!formItem.value.useExistingImage && targetItem.image) {
-                            console.log("Restock: Deleting old archive image:", targetItem.image);
-                            deleteImage(targetItem.image);
-                            // We don't inherit it, and we deleted it.
-                            // Ensure the new batch has the NEW image (which is 'newBatch.image' or 'finalImageUrl')
+                        // === 數量不變 (No Quantity Change) ===
+                        if (batches.length > 0) {
+                            batches[0] = {
+                                ...batches[0],
+                                storedDate: newBatch.storedDate,
+                                expiryDate: newBatch.expiryDate,
+                                noExpiry: newBatch.noExpiry,
+                                image: newBatch.image 
+                            };
                         }
                     }
 
-                    if (formItem.value.useExistingImage) {
-                        newBatch.image = targetItem.image || null;
-                    } 
-                    // else newBatch.image is already finalImageUrl
+                    const result = recalculateItemFromBatches(batches, ownersFinal);
 
-                    // In "Add Mode" with "Merge", the user input quantity is *additional* quantity.
-                    // The UI logic:
-                    // If mode='add', safeQuantity IS the quantity to add.
-                    // So we just push it.
-                    batches.push(newBatch);
-                    
-                    const targetOwners = targetItem.owners || ['全家'];
-                    const result = recalculateItemFromBatches(batches, targetOwners); 
-
-                    await updateDoc(doc(db.value, "fridge_items", targetItem.id), {
+                    await updateDoc(doc(db.value, "fridge_items", formItem.value.id), {
+                        name: formItem.value.name,
+                        zone: formItem.value.zone || 'cold',
+                        shoppingStatus: formItem.value.shoppingStatus,
                         ...result,
                         updatedAt: new Date()
                     });
 
                 } else {
-                    // 完全新增
-                    const initialBatches = [newBatch];
-                    const result = recalculateItemFromBatches(initialBatches, ownersFinal);
+                    // === 新增模式 (Add Mode) ===
+                    const targetItem = matchedExistingItem.value;
 
-                    await addDoc(collection(db.value, "fridge_items"), {
-                        name: formItem.value.name,
-                        zone: formItem.value.zone || 'cold',
-                        shoppingStatus: null,
-                        ...result,
-                        createdAt: new Date()
-                    });
+                    if (targetItem) {
+                        // 合併到現有物品 (Merge)
+                        let batches = [];
+                        if (parseInt(targetItem.quantity) > 0) {
+                            batches = targetItem.batches ? [...targetItem.batches] : [{
+                                storedDate: targetItem.storedDate,
+                                expiryDate: targetItem.expiryDate,
+                                noExpiry: targetItem.noExpiry,
+                                quantity: parseInt(targetItem.quantity),
+                                image: targetItem.image || null,
+                                addedAt: 0
+                            }];
+                        } else {
+                            if (!formItem.value.useExistingImage && targetItem.image) {
+                                console.log("Restock: Deleting old archive image:", targetItem.image);
+                                deleteImage(targetItem.image);
+                            }
+                        }
+
+                        if (formItem.value.useExistingImage) {
+                            newBatch.image = targetItem.image || null;
+                        } 
+
+                        batches.push(newBatch);
+                        
+                        const targetOwners = targetItem.owners || ['全家'];
+                        const result = recalculateItemFromBatches(batches, targetOwners); 
+
+                        await updateDoc(doc(db.value, "fridge_items", targetItem.id), {
+                            ...result,
+                            updatedAt: new Date()
+                        });
+
+                    } else {
+                        // 完全新增
+                        const initialBatches = [newBatch];
+                        const result = recalculateItemFromBatches(initialBatches, ownersFinal);
+
+                        await addDoc(collection(db.value, "fridge_items"), {
+                            name: formItem.value.name,
+                            zone: formItem.value.zone || 'cold',
+                            shoppingStatus: null,
+                            ...result,
+                            createdAt: new Date()
+                        });
+                    }
                 }
+
+                if (props.pendingPurchaseOriginalId) {
+                    await updateDoc(doc(db.value, "fridge_items", props.pendingPurchaseOriginalId), {
+                        shoppingStatus: null
+                    });
+                    emit('update-pending-id', null);
+                }
+
+                emit('submit-success');
+                
+            } catch (firestoreErr) {
+                // !!! ROLLBACK !!!
+                // If we uploaded a NEW image but Firestore failed, we must delete that image
+                if (!formItem.value.useExistingImage && pendingImageBlob.value && finalImageUrl) {
+                    console.warn("Firestore write failed, rolling back image upload...", finalImageUrl);
+                    await deleteImage(finalImageUrl);
+                }
+                throw firestoreErr; // Re-throw to trigger outer catch for UI alert
             }
 
-            if (props.pendingPurchaseOriginalId) {
-                await updateDoc(doc(db.value, "fridge_items", props.pendingPurchaseOriginalId), {
-                    shoppingStatus: null
-                });
-                emit('update-pending-id', null);
-            }
-
-            emit('submit-success');
         } catch (e) {
             console.error("Firebase Error:", e);
             alert("上傳/更新失敗，請檢查網路");

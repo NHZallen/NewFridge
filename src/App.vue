@@ -162,7 +162,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { deleteImage } from './utils/storageUtils.js'
+import { deleteImage, cleanupUnusedImages } from './utils/storageUtils.js'
 import { storeToRefs } from 'pinia'
 
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
@@ -584,8 +584,15 @@ const confirmTakeOutAction = async () => {
   if (takeQty >= currentQty) {
     try {
       // --- Image Cleanup (Full Take Out) ---
-      const imagesToDelete = new Set();
-      
+      // Collect ALL images associated with this item
+      const allImages = new Set();
+      if (itemToDelete.value.image) allImages.add(itemToDelete.value.image);
+      if (itemToDelete.value.batches) {
+        itemToDelete.value.batches.forEach(b => {
+          if (b.image) allImages.add(b.image);
+        });
+      }
+
       // Default to current main image
       let imageToKeep = itemToDelete.value.image;
 
@@ -599,23 +606,10 @@ const confirmTakeOutAction = async () => {
               imageToKeep = latestBatch.image;
           }
       }
-
-      // Collect images to delete (anything that is NOT imageToKeep)
-      if (itemToDelete.value.image && itemToDelete.value.image !== imageToKeep) {
-          imagesToDelete.add(itemToDelete.value.image);
-      }
-      if (itemToDelete.value.batches) {
-          itemToDelete.value.batches.forEach(b => {
-              if (b.image && b.image !== imageToKeep) {
-                  imagesToDelete.add(b.image);
-              }
-          });
-      }
       
-      if (imagesToDelete.size > 0) {
-          console.log("Cleanup (Full Takeout): Deleting unused, keeping latest:", imageToKeep, "Deleting:", Array.from(imagesToDelete));
-          imagesToDelete.forEach(url => deleteImage(url));
-      }
+      const keepingImages = imageToKeep ? [imageToKeep] : [];
+      await cleanupUnusedImages(allImages, keepingImages);
+      // -------------------------------------
       // -------------------------------------
 
       await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), {
@@ -678,26 +672,21 @@ const confirmTakeOutAction = async () => {
     const result = recalculateItemFromBatches(newBatches, itemToDelete.value.owners)
     
     // --- Image Cleanup Logic ---
-    // 1. Identify images in the NEW (remaining) batches
-    const remainingImages = new Set();
-    if (result.image) remainingImages.add(result.image);
+    // 1. Identify images in the OLD (original) batches
+    const oldImages = new Set();
+    itemToDelete.value.batches.forEach(b => {
+        if (b.image) oldImages.add(b.image);
+    });
+
+    // 2. Identify images in the NEW (remaining) batches + Result Main Image
+    const keepingImages = new Set();
+    if (result.image) keepingImages.add(result.image);
     newBatches.forEach(b => {
-        if (b.image) remainingImages.add(b.image);
+        if (b.image) keepingImages.add(b.image);
     });
 
-    // 2. Identify images in the OLD (original) batches that are NOT in the remaining set
-    const imagesToDelete = new Set();
-    batches.forEach(b => {
-        if (b.image && !remainingImages.has(b.image)) {
-            imagesToDelete.add(b.image);
-        }
-    });
-
-    // 3. Delete them
-    if (imagesToDelete.size > 0) {
-        console.log("Cleanup: Deleting unused images:", Array.from(imagesToDelete));
-        imagesToDelete.forEach(url => deleteImage(url));
-    }
+    // 3. Delete unused
+    await cleanupUnusedImages(oldImages, keepingImages);
     // ---------------------------
 
     await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), { ...result })
@@ -715,17 +704,15 @@ const deleteItemPermanently = async (id) => {
     // --- Image Cleanup (Delete) ---
     const item = items.value.find(i => i.id === id);
     if (item) {
-        const imagesToDelete = new Set();
-        if (item.image) imagesToDelete.add(item.image);
+        const allImages = new Set();
+        if (item.image) allImages.add(item.image);
         if (item.batches) {
             item.batches.forEach(b => {
-                if (b.image) imagesToDelete.add(b.image);
+                if (b.image) allImages.add(b.image);
             });
         }
-        if (imagesToDelete.size > 0) {
-            console.log("Cleanup (Delete): Deleting images:", Array.from(imagesToDelete));
-            imagesToDelete.forEach(url => deleteImage(url));
-        }
+        // Delete everything (keep nothing)
+        await cleanupUnusedImages(allImages, []);
     }
     // ------------------------------
 
@@ -741,16 +728,16 @@ const deleteSelectedNoStock = async () => {
     for (const id of selectedHomeIds.value) {
         const item = items.value.find(i => i.id === id);
         if (item) {
-            const imagesToDelete = new Set();
-            if (item.image) imagesToDelete.add(item.image);
+            const allImages = new Set();
+            if (item.image) allImages.add(item.image);
             if (item.batches) {
                 item.batches.forEach(b => {
-                    if (b.image) imagesToDelete.add(b.image);
+                    if (b.image) allImages.add(b.image);
                 });
             }
-            if (imagesToDelete.size > 0) {
-                 imagesToDelete.forEach(url => deleteImage(url));
-            }
+            // Fire and forget individually to avoid super long await if selection is huge, 
+            // OR await all. Await all is safer.
+            await cleanupUnusedImages(allImages, []);
         }
     }
     // ------------------------------------

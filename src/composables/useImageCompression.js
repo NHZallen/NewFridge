@@ -17,7 +17,11 @@ export function useImageCompression() {
                     canvas.height = h
                     const ctx = canvas.getContext("2d")
                     ctx.drawImage(img, 0, 0, w, h)
-                    resolve(canvas.toDataURL("image/jpeg", 0.6))
+
+                    // 改回傳 Blob 而非 DataURL
+                    canvas.toBlob((blob) => {
+                        resolve(blob)
+                    }, "image/jpeg", 0.7)
                 }
             }
         })

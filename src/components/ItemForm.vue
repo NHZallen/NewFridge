@@ -91,7 +91,7 @@
                     </div>
 
                     <div v-if="!formItem.useExistingImage" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3" style="min-height: 200px;" @click="$refs.fileInput.click()">
-                        <img v-if="formItem.image" :src="formItem.image" class="w-100 rounded" style="max-height: 300px; object-fit: contain;">
+                        <img v-if="displayImage" :src="displayImage" class="w-100 rounded" style="max-height: 300px; object-fit: contain;">
                         <div v-else class="text-center text-muted">
                             <i class="bi bi-camera fs-1"></i>
                             <div class="mt-2">點擊選擇相機或相簿</div>
@@ -183,7 +183,7 @@
                 <button v-if="mode==='edit' && formItem.quantity == 0 && formItem.quantity !== ''" 
                         type="button" 
                         class="btn btn-outline-danger w-100 mt-3 rounded-pill"
-                        @click="$emit('delete-item', formItem.id)">
+                        @click="handleDelete">
                     <i class="bi bi-trash me-1"></i> 永久刪除此物品
                 </button>
             </form>
@@ -193,11 +193,12 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue'
-import { getFirestore, doc, collection, addDoc, updateDoc } from 'firebase/firestore'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
+import { uploadImage, deleteImage } from '../utils/storageUtils.js'
 
 export default {
   name: 'ItemForm',
@@ -214,13 +215,30 @@ export default {
     const isCompressing = ref(false)
     const isUploading = ref(false)
     const showOwnerDropdown = ref(false)
+    
+    // Store the raw Blob for uploading later
+    const pendingImageBlob = ref(null)
+    // Store local preview URL (needs cleanup)
+    const previewImageUrl = ref(null)
 
     // 使用 composable 取得 compressFile
     const { compressFile } = useImageCompression()
 
+    // Clean up ObjectURL to avoid memory leaks
+    onUnmounted(() => {
+        if (previewImageUrl.value) {
+            URL.revokeObjectURL(previewImageUrl.value)
+        }
+    })
+
     // 重置 formItem 當 prop 改變
     watch(() => props.initialItem, (newVal) => {
         formItem.value = { ...newVal }
+        pendingImageBlob.value = null
+        if (previewImageUrl.value) {
+            URL.revokeObjectURL(previewImageUrl.value)
+            previewImageUrl.value = null
+        }
     }, { deep: true })
 
     const uniqueItemNames = computed(() => {
@@ -241,14 +259,17 @@ export default {
     })
     
     // 計算物品所有人的題號
-    // 預設 1~6 都有填: 7
-    // 無期限 checked -> 6 隱藏了 -> 變成 6
-    // 數量 0 -> 4 數量後的都隱藏 -> 變成 4
     const ownerFieldIndex = computed(() => {
         let q = formItem.value.quantity
         if (q === 0 || (typeof q === 'string' && q.trim() === '0')) return 4
         if (formItem.value.noExpiry) return 6
         return 7
+    })
+    
+    // Helper to determine what to show in the UI
+    const displayImage = computed(() => {
+        if (previewImageUrl.value) return previewImageUrl.value
+        return formItem.value.image
     })
 
     const addDays = (days) => {
@@ -294,20 +315,70 @@ export default {
     const processImage = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        
         formItem.value.useExistingImage = false;
         isCompressing.value = true;
         try {
-            const compressed = await compressFile(file);
-            formItem.value.image = compressed;
+            // Compress and get a Blob
+            const compressedBlob = await compressFile(file);
+            pendingImageBlob.value = compressedBlob;
+            
+            // Create a local preview URL
+            if (previewImageUrl.value) URL.revokeObjectURL(previewImageUrl.value)
+            previewImageUrl.value = URL.createObjectURL(compressedBlob)
+            
+            // Clear the old base64/url string from formItem to ensure we know it's a new one
+            // We'll rely on pendingImageBlob for the actual data
+            formItem.value.image = null 
         } catch (e) {
+            console.error(e)
             alert("圖片處理失敗");
         } finally {
             isCompressing.value = false;
         }
     }
 
+    const handleDelete = async () => {
+        if (!confirm("確定要永久刪除此物品嗎？此操作無法復原。")) return;
+        
+        isUploading.value = true; // Use uploading flag to disable buttons
+        try {
+            // 1. Clean up images from Storage
+            const itemToDelete = props.allItems.find(i => i.id === formItem.value.id);
+            if (itemToDelete && itemToDelete.batches) {
+                const uniqueImages = new Set();
+                
+                // Add main image if exists
+                 if (itemToDelete.image) uniqueImages.add(itemToDelete.image);
+                 
+                // Add batch images
+                itemToDelete.batches.forEach(b => {
+                    if (b.image) uniqueImages.add(b.image);
+                });
+
+                // Delete all unique Storage images
+                const deletePromises = Array.from(uniqueImages).map(url => deleteImage(url));
+                await Promise.all(deletePromises);
+            }
+            
+            // 2. Delete document from Firestore
+            // Note: We use the logic from parent if we just emit, but here we can do it directly or emit.
+            // Original code emitted 'delete-item', which presumably handles Firestore delete.
+            // But to ensure we don't leave orphan files if the parent implementation changed, 
+            // we handled storage deletion here first.
+            emit('delete-item', formItem.value.id);
+            
+        } catch(e) {
+            console.error("Delete error:", e);
+            alert("刪除時發生錯誤，請稍後再試");
+            isUploading.value = false;
+        }
+    };
+
     const submitItem = async () => {
-        if (!formItem.value.useExistingImage && !formItem.value.image) { 
+        // Validation
+        if (!formItem.value.useExistingImage && !pendingImageBlob.value && !formItem.value.image) { 
+            // if no new blob AND no existing image string (edit mode initial)
             alert("請記得拍照喔！"); return; 
         }
         
@@ -324,24 +395,30 @@ export default {
             alert("請填存入日期"); return; 
         }
 
-        const db = getFirestore()
-        
-        const expiryDateClean = formItem.value.noExpiry ? "" : (formItem.value.expiryDate || "");
-        const noExpiryFinal = formItem.value.noExpiry || !expiryDateClean;
-        const ownersFinal = (formItem.value.owners && formItem.value.owners.length > 0) ? formItem.value.owners : ['全家'];
-        let imageToSave = formItem.value.image || null;
-
-        const newBatch = {
-            storedDate: formItem.value.storedDate,
-            expiryDate: expiryDateClean,
-            noExpiry: noExpiryFinal,
-            quantity: safeQuantity,
-            image: imageToSave, 
-            addedAt: Date.now()
-        };
-
         isUploading.value = true;
+
         try {
+            const db = getFirestore()
+            let finalImageUrl = formItem.value.image; // Default to existing URL/Base64
+
+            // Upload new image if exists
+            if (!formItem.value.useExistingImage && pendingImageBlob.value) {
+                finalImageUrl = await uploadImage(pendingImageBlob.value);
+            }
+
+            const expiryDateClean = formItem.value.noExpiry ? "" : (formItem.value.expiryDate || "");
+            const noExpiryFinal = formItem.value.noExpiry || !expiryDateClean;
+            const ownersFinal = (formItem.value.owners && formItem.value.owners.length > 0) ? formItem.value.owners : ['全家'];
+
+            const newBatch = {
+                storedDate: formItem.value.storedDate,
+                expiryDate: expiryDateClean,
+                noExpiry: noExpiryFinal,
+                quantity: safeQuantity,
+                image: finalImageUrl, 
+                addedAt: Date.now()
+            };
+
             if (formItem.value.id) {
                 // === 編輯 ===
                 const oldItemRef = props.allItems.find(i => i.id === formItem.value.id);
@@ -358,11 +435,19 @@ export default {
                       }];
                 }
 
-                const finalImage = formItem.value.image || (batches[0] ? batches[0].image : null) || null;
+                // If editing the main item card, we usually update the "current" batch or add a new one?
+                // The original logic seemed to just update index 0 or push new. 
+                // We'll keep original logic integrity but ensure image is correct.
+                
+                // Original logic:
+                // if (batches[0]) batches[0] = ... else batches.push(...)
+                // This logic implies we are ALWAYS editing the "first" batch or adding one if empty.
+                // This might be a simplification in the original app, we stick to it.
+                
                 if (batches[0]) {
-                    batches[0] = { ...batches[0], ...newBatch, image: finalImage };
+                    batches[0] = { ...batches[0], ...newBatch };
                 } else {
-                    batches.push({ ...newBatch, image: finalImage });
+                    batches.push(newBatch);
                 }
 
                 const result = recalculateItemFromBatches(batches, ownersFinal);
@@ -380,7 +465,7 @@ export default {
                 const targetItem = matchedExistingItem.value;
 
                 if (targetItem) {
-                    // 合併
+                    // 合併到現有物品
                     let batches = [];
                     if (parseInt(targetItem.quantity) > 0) {
                         batches = targetItem.batches ? [...targetItem.batches] : [{
@@ -395,9 +480,8 @@ export default {
 
                     if (formItem.value.useExistingImage) {
                         newBatch.image = targetItem.image || null;
-                    } else {
-                        newBatch.image = formItem.value.image || null; 
-                    }
+                    } 
+                    // else newBatch.image is already finalImageUrl
 
                     batches.push(newBatch);
                     const targetOwners = targetItem.owners || ['全家'];
@@ -452,7 +536,9 @@ export default {
         processImage,
         submitItem,
         showOwnerDropdown,
-        ownerFieldIndex
+        ownerFieldIndex,
+        handleDelete,
+        displayImage
     }
   }
 }

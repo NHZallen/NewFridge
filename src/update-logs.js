@@ -1,6 +1,15 @@
-export const LATEST_VERSION = "1.9.3";
+export const LATEST_VERSION = "1.10.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.10.0",
+    date: "2026-01-25",
+    title: "推播通知與數據分析整合",
+    changes: [
+      "新增 Vercel Analytics：整合網站流量分析，協助優化使用體驗",
+      "推播通知系統 (FCM) 升級：完成裝置註冊與 Token 管理機制，為即將到來的到期提醒做準備"
+    ]
+  },
   {
     version: "1.9.3",
     date: "2026-01-24",

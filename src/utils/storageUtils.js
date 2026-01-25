@@ -12,8 +12,10 @@ export async function uploadImage(blob, namePrefix = "item") {
 
     // Generate a unique filename: timestamp + prefix + random suffix
     const timestamp = Date.now();
-    // Sanitize prefix to be safe for filenames (alphanumeric only)
-    const safePrefix = (namePrefix || "item").replace(/[^a-zA-Z0-9]/g, "");
+    // Sanitize prefix to be safe for filenames:
+    // Allow Unicode (Chinese, etc.) but strip characters that are unsafe for filesystems/URLs
+    // Removing: / \ : * ? " < > | . %
+    const safePrefix = (namePrefix || "item").replace(/[\\/:"*?<>|.%]/g, "_");
     const randomSuffix = Math.random().toString(36).substring(2, 8);
 
     // Format: 1731552000000_Milk_x8z92a.jpg

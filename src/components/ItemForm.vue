@@ -49,13 +49,13 @@
                     <label class="form-label fw-bold">1. 存放區域</label>
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="zone" id="zone-cold" value="cold" v-model="formItem.zone" checked>
-                        <label class="btn btn-outline-primary" for="zone-cold">冷藏區</label>
+                        <label class="btn btn-outline-cold" for="zone-cold">冷藏區</label>
 
                         <input type="radio" class="btn-check" name="zone" id="zone-frozen" value="frozen" v-model="formItem.zone">
-                        <label class="btn btn-outline-primary" for="zone-frozen">冷凍區</label>
+                        <label class="btn btn-outline-frozen" for="zone-frozen">冷凍區</label>
 
                         <input type="radio" class="btn-check" name="zone" id="zone-veggie" value="veggie" v-model="formItem.zone">
-                        <label class="btn btn-outline-primary" for="zone-veggie">蔬果區</label>
+                        <label class="btn btn-outline-veggie" for="zone-veggie">蔬果區</label>
                     </div>
                 </div>
 
@@ -138,7 +138,7 @@
                 </div>
                 
                 <div class="mb-4 position-relative">
-                    <label class="form-label fw-bold">{{ (formItem.quantity != 0 || formItem.quantity === '') ? '7.' : '4.' }} 物品所有人</label>
+                    <label class="form-label fw-bold">{{ ownerFieldIndex }}. 物品所有人</label>
                     
                     <!-- 隱形遮罩，用來點擊外部關閉選單 -->
                     <div v-if="showOwnerDropdown" class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040; cursor: default;" @click="showOwnerDropdown = false"></div>
@@ -238,6 +238,17 @@ export default {
         if (newVal) {
             formItem.value.useExistingImage = true
         }
+    })
+    
+    // 計算物品所有人的題號
+    // 預設 1~6 都有填: 7
+    // 無期限 checked -> 6 隱藏了 -> 變成 6
+    // 數量 0 -> 4 數量後的都隱藏 -> 變成 4
+    const ownerFieldIndex = computed(() => {
+        let q = formItem.value.quantity
+        if (q === 0 || (typeof q === 'string' && q.trim() === '0')) return 4
+        if (formItem.value.noExpiry) return 6
+        return 7
     })
 
     const addDays = (days) => {
@@ -440,7 +451,8 @@ export default {
         toggleToBuyStatus,
         processImage,
         submitItem,
-        showOwnerDropdown
+        showOwnerDropdown,
+        ownerFieldIndex
     }
   }
 }

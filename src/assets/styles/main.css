@@ -213,10 +213,36 @@ body {
 
 .btn-outline-frozen:hover,
 .btn-outline-frozen:active,
-.btn-outline-frozen.active {
+.btn-check:checked + .btn-outline-frozen {
     color: #fff;
     background-color: #002266;
     border-color: #002266;
+}
+
+.btn-outline-cold {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-cold:hover,
+.btn-outline-cold:active,
+.btn-check:checked + .btn-outline-cold {
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-veggie {
+    color: #198754;
+    border-color: #198754;
+}
+
+.btn-outline-veggie:hover,
+.btn-outline-veggie:active,
+.btn-check:checked + .btn-outline-veggie {
+    color: #fff;
+    background-color: #198754;
+    border-color: #198754;
 }
 
 .shopping-item-row {

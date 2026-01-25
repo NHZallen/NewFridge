@@ -1,4 +1,4 @@
-import { storage } from '../firebaseConfig';
+import { storage } from '../composables/useFirebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 /**
@@ -7,13 +7,13 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
  * @returns {Promise<string>} - The download URL of the uploaded image
  */
 export async function uploadImage(blob) {
-    if (!blob) return null;
+    if (!blob || !storage.value) return null;
 
     // Generate a unique filename: timestamp + random suffix
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const filename = `${timestamp}_${randomSuffix}.jpg`;
-    const storageRef = ref(storage, `fridge_items/${filename}`);
+    const storageRef = ref(storage.value, `fridge_items/${filename}`);
 
     try {
         const snapshot = await uploadBytes(storageRef, blob);
@@ -30,12 +30,12 @@ export async function uploadImage(blob) {
  * @param {string} url - The download URL of the image
  */
 export async function deleteImage(url) {
-    if (!url || !url.startsWith('https://firebasestorage.googleapis.com')) {
+    if (!url || !url.startsWith('https://firebasestorage.googleapis.com') || !storage.value) {
         return; // Not a storage URL, skip
     }
 
     try {
-        const storageRef = ref(storage, url);
+        const storageRef = ref(storage.value, url);
         await deleteObject(storageRef);
     } catch (error) {
         console.error("Error deleting image:", error);

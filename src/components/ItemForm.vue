@@ -194,7 +194,8 @@
 
 <script>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, collection, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { db } from '../composables/useFirebase'
 import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
@@ -398,7 +399,7 @@ export default {
         isUploading.value = true;
 
         try {
-            const db = getFirestore()
+            if (!db.value) return;
             let finalImageUrl = formItem.value.image; // Default to existing URL/Base64
 
             // Upload new image if exists
@@ -452,7 +453,7 @@ export default {
 
                 const result = recalculateItemFromBatches(batches, ownersFinal);
 
-                await updateDoc(doc(db, "fridge_items", formItem.value.id), {
+                await updateDoc(doc(db.value, "fridge_items", formItem.value.id), {
                     name: formItem.value.name,
                     zone: formItem.value.zone || 'cold',
                     shoppingStatus: formItem.value.shoppingStatus,
@@ -487,7 +488,7 @@ export default {
                     const targetOwners = targetItem.owners || ['全家'];
                     const result = recalculateItemFromBatches(batches, targetOwners); 
 
-                    await updateDoc(doc(db, "fridge_items", targetItem.id), {
+                    await updateDoc(doc(db.value, "fridge_items", targetItem.id), {
                         ...result,
                         updatedAt: new Date()
                     });
@@ -497,7 +498,7 @@ export default {
                     const initialBatches = [newBatch];
                     const result = recalculateItemFromBatches(initialBatches, ownersFinal);
 
-                    await addDoc(collection(db, "fridge_items"), {
+                    await addDoc(collection(db.value, "fridge_items"), {
                         name: formItem.value.name,
                         zone: formItem.value.zone || 'cold',
                         shoppingStatus: null,
@@ -508,7 +509,7 @@ export default {
             }
 
             if (props.pendingPurchaseOriginalId) {
-                await updateDoc(doc(db, "fridge_items", props.pendingPurchaseOriginalId), {
+                await updateDoc(doc(db.value, "fridge_items", props.pendingPurchaseOriginalId), {
                     shoppingStatus: null
                 });
                 emit('update-pending-id', null);

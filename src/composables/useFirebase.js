@@ -1,14 +1,19 @@
 import { ref } from 'vue'
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 
 // Singleton state
 const appFirebase = ref(null)
 const db = ref(null)
+const storage = ref(null)
 const auth = ref(null)
 const currentUser = ref(null)
 const isConfigured = ref(false)
+
+// Named exports for non-composable usage
+export { db, storage, auth, currentUser, isConfigured }
 
 export function useFirebase() {
 
@@ -17,6 +22,7 @@ export function useFirebase() {
             if (!appFirebase.value) {
                 appFirebase.value = initializeApp(config)
                 db.value = getFirestore(appFirebase.value)
+                storage.value = getStorage(appFirebase.value)
                 auth.value = getAuth(appFirebase.value)
 
                 onAuthStateChanged(auth.value, (user) => {
@@ -84,6 +90,7 @@ export function useFirebase() {
     return {
         appFirebase,
         db,
+        storage,
         auth,
         currentUser,
         isConfigured,

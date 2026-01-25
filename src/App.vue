@@ -585,20 +585,35 @@ const confirmTakeOutAction = async () => {
     try {
       // --- Image Cleanup (Full Take Out) ---
       const imagesToDelete = new Set();
-      // DO NOT delete the main image (itemToDelete.value.image) so it stays in "No Stock"
-      const mainImage = itemToDelete.value.image;
       
+      // Default to current main image
+      let imageToKeep = itemToDelete.value.image;
+
+      // Find the LATEST image from batches to be the new "Archive Photo"
+      if (itemToDelete.value.batches && itemToDelete.value.batches.length > 0) {
+          // Sort by addedAt desc (newest first)
+          const sortedBatches = [...itemToDelete.value.batches].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+          const latestBatch = sortedBatches.find(b => b.image);
+          
+          if (latestBatch) {
+              imageToKeep = latestBatch.image;
+          }
+      }
+
+      // Collect images to delete (anything that is NOT imageToKeep)
+      if (itemToDelete.value.image && itemToDelete.value.image !== imageToKeep) {
+          imagesToDelete.add(itemToDelete.value.image);
+      }
       if (itemToDelete.value.batches) {
           itemToDelete.value.batches.forEach(b => {
-              // Delete batch images ONLY if they are different from the retained main image
-              if (b.image && b.image !== mainImage) {
+              if (b.image && b.image !== imageToKeep) {
                   imagesToDelete.add(b.image);
               }
           });
       }
       
       if (imagesToDelete.size > 0) {
-          console.log("Cleanup (Full Takeout): Deleting unused batch images, keeping main:", Array.from(imagesToDelete));
+          console.log("Cleanup (Full Takeout): Deleting unused, keeping latest:", imageToKeep, "Deleting:", Array.from(imagesToDelete));
           imagesToDelete.forEach(url => deleteImage(url));
       }
       // -------------------------------------
@@ -609,6 +624,7 @@ const confirmTakeOutAction = async () => {
         storedDate: "",
         expiryDate: "",
         noExpiry: true,
+        image: imageToKeep || null, // Explicitly update the image to the latest one
         updatedAt: new Date()
       })
       goHome()

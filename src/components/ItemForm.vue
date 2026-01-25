@@ -152,7 +152,7 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-custom shadow border-0" 
                             :class="{ show: showOwnerDropdown }"
-                            style="z-index: 1051;">
+                            style="z-index: 1051; top: auto; bottom: 100%; margin-bottom: 5px;">
                             <li>
                                 <label class="dropdown-item-custom">
                                     <input type="checkbox" class="form-check-input" 

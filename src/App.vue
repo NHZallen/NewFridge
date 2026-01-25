@@ -359,7 +359,7 @@ const saveInitialConfig = async () => {
     
   } catch (e) {
     console.error(e)
-    setupError.value = "設定失敗，請檢查代碼是否正確或是網路連線異常"
+    setupError.value = "設定失敗：" + (e.message || "請檢查代碼格式或網路連線");
   } finally {
     isSettingUp.value = false
   }

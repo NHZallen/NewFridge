@@ -20,20 +20,36 @@ export function useFirebase() {
     const initFirebase = async (config) => {
         try {
             if (!appFirebase.value) {
+                console.log("Initializing Firebase with project:", config.projectId)
                 appFirebase.value = initializeApp(config)
                 db.value = getFirestore(appFirebase.value)
-                storage.value = getStorage(appFirebase.value)
-                auth.value = getAuth(appFirebase.value)
 
-                onAuthStateChanged(auth.value, (user) => {
-                    currentUser.value = user
-                })
+                // Initialize Storage only if storageBucket exists
+                if (config.storageBucket) {
+                    try {
+                        storage.value = getStorage(appFirebase.value)
+                        console.log("Storage initialized")
+                    } catch (storageErr) {
+                        console.error("Storage Init Failed:", storageErr)
+                    }
+                } else {
+                    console.warn("Storage Bucket missing in config")
+                }
+
+                try {
+                    auth.value = getAuth(appFirebase.value)
+                    onAuthStateChanged(auth.value, (user) => {
+                        currentUser.value = user
+                    })
+                } catch (authErr) {
+                    console.error("Auth Init Failed:", authErr)
+                }
             }
             isConfigured.value = true
             return true
         } catch (e) {
             console.error("Firebase Init Error:", e)
-            throw e
+            throw new Error(e.message || "Firebase 初始化失敗");
         }
     }
 

@@ -80,6 +80,12 @@
                 <div class="mb-4">
                     <label class="form-label fw-bold fs-5">3. 物品照片</label>
                     
+                    <!-- 編輯模式更換照片提示 -->
+                    <div v-if="mode==='edit'" class="alert alert-info d-flex align-items-center mb-2 py-2 small" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <div>更換照片將會同步更新此物品的所有批次。</div>
+                    </div>
+
                     <div v-if="matchedExistingItem" class="mb-2 bg-light p-3 rounded border">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="useExistingImg" v-model="formItem.useExistingImage" style="cursor: pointer;">
@@ -199,7 +205,7 @@ import { db } from '../composables/useFirebase'
 import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
-import { uploadImage, deleteImage } from '../utils/storageUtils.js'
+import { uploadImage, deleteImage, cleanupUnusedImages } from '../utils/storageUtils.js'
 
 export default {
   name: 'ItemForm',
@@ -249,7 +255,8 @@ export default {
     const matchedExistingItem = computed(() => {
         if (props.mode !== 'add') return null
         if (!formItem.value.name) return null
-        return props.allItems.find(i => i.name === formItem.value.name)
+        // Strict match: Name AND Zone
+        return props.allItems.find(i => i.name === formItem.value.name && i.zone === formItem.value.zone)
     })
 
     // 當發現同名物品時，預設開啟「沿用舊照片」
@@ -419,6 +426,19 @@ export default {
                         }];
                     }
 
+                    // === IMAGE REPLACEMENT LOGIC (Edit Mode) ===
+                    // If user uploaded a new image, we apply it to ALL batches
+                    const isReplacingImage = !formItem.value.useExistingImage && pendingImageBlob.value;
+                    const oldImagesToDelete = new Set();
+    
+                    if (isReplacingImage) {
+                        if (oldItemRef.image) oldImagesToDelete.add(oldItemRef.image);
+                        batches.forEach(b => {
+                            if (b.image) oldImagesToDelete.add(b.image);
+                            b.image = finalImageUrl; // Update ALL batches to new image
+                        });
+                    }
+
                     // Calculate current total quantity from batches
                     const currentTotal = batches.reduce((sum, b) => sum + parseInt(b.quantity || 0), 0);
                     const targetTotal = safeQuantity;
@@ -433,7 +453,7 @@ export default {
                         batches.push(batchToAdd);
 
                     } else if (diff < 0) {
-                        // === 減少數量 (Reduce Quantity) ===
+                         // === 減少數量 (Reduce Quantity) ===
                         batches.sort((a, b) => {
                             const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31");
                             const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31");
@@ -481,24 +501,29 @@ export default {
                         });
 
                         // Delete images that are truly gone
-                        // NOTE: We do this asynchronously and don't block the UI for it
                         imagesPotentiallyDeleted.forEach(url => {
                             if (!remainingImages.has(url)) {
-                                console.log("Edit Limit: Deleting unused image:", url);
-                                deleteImage(url);
+                                 // If we are in "Replacing Image" mode, we will handle cleanup centrally later using oldImagesToDelete
+                                 if (!isReplacingImage) {
+                                      console.log("Edit Limit: Deleting unused image:", url);
+                                      deleteImage(url);
+                                 }
                             }
                         });
 
                     } else {
                         // === 數量不變 (No Quantity Change) ===
                         if (batches.length > 0) {
-                            batches[0] = {
-                                ...batches[0],
-                                storedDate: newBatch.storedDate,
-                                expiryDate: newBatch.expiryDate,
-                                noExpiry: newBatch.noExpiry,
-                                image: newBatch.image 
-                            };
+                             batches[0] = {
+                                 ...batches[0],
+                                 storedDate: newBatch.storedDate,
+                                 expiryDate: newBatch.expiryDate,
+                                 noExpiry: newBatch.noExpiry,
+                             };
+                             // Only update image if specific batch didn't get bulk updated or if we are not replacing
+                             if (!isReplacingImage) {
+                                batches[0].image = newBatch.image;
+                             }
                         }
                     }
 
@@ -511,6 +536,12 @@ export default {
                         ...result,
                         updatedAt: new Date()
                     });
+                    
+                    // === POST-UPDATE CLEANUP (Replace All) ===
+                    if (isReplacingImage && oldImagesToDelete.size > 0) {
+                        console.log("Image Replaced: Cleaning up old images...");
+                        cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
+                    }
 
                 } else {
                     // === 新增模式 (Add Mode) ===

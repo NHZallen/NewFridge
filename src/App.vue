@@ -262,8 +262,8 @@ const showScrollTop = ref(false)
 const previewImageUrl = ref(null)
 
 // 篩選
-const searchText = ref("")
-const filterZone = ref("all")
+// const searchText = ref("")
+// const filterZone = ref("all")
 
 // 取出物品
 const itemToDelete = ref(null)

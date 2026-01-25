@@ -585,14 +585,20 @@ const confirmTakeOutAction = async () => {
     try {
       // --- Image Cleanup (Full Take Out) ---
       const imagesToDelete = new Set();
-      if (itemToDelete.value.image) imagesToDelete.add(itemToDelete.value.image);
+      // DO NOT delete the main image (itemToDelete.value.image) so it stays in "No Stock"
+      const mainImage = itemToDelete.value.image;
+      
       if (itemToDelete.value.batches) {
           itemToDelete.value.batches.forEach(b => {
-              if (b.image) imagesToDelete.add(b.image);
+              // Delete batch images ONLY if they are different from the retained main image
+              if (b.image && b.image !== mainImage) {
+                  imagesToDelete.add(b.image);
+              }
           });
       }
+      
       if (imagesToDelete.size > 0) {
-          console.log("Cleanup (Full Takeout): Deleting images:", Array.from(imagesToDelete));
+          console.log("Cleanup (Full Takeout): Deleting unused batch images, keeping main:", Array.from(imagesToDelete));
           imagesToDelete.forEach(url => deleteImage(url));
       }
       // -------------------------------------

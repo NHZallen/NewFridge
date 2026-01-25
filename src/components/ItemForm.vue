@@ -560,6 +560,16 @@ export default {
                             image: targetItem.image || null,
                             addedAt: 0
                         }];
+                    } else {
+                        // Target is "No Stock" / Archive.
+                        // Check if we need to clean up the old "Archive" image.
+                        // Condition: User is NOT using the existing image (uploading NEW one) AND there is an old image.
+                        if (!formItem.value.useExistingImage && targetItem.image) {
+                            console.log("Restock: Deleting old archive image:", targetItem.image);
+                            deleteImage(targetItem.image);
+                            // We don't inherit it, and we deleted it.
+                            // Ensure the new batch has the NEW image (which is 'newBatch.image' or 'finalImageUrl')
+                        }
                     }
 
                     if (formItem.value.useExistingImage) {

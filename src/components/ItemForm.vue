@@ -103,7 +103,7 @@
                             <div class="mt-2">點擊選擇相機或相簿</div>
                         </div>
                     </div>
-                    <div v-else class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3 opacity-75">
+                    <div v-else-if="matchedExistingItem" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3 opacity-75">
                         <img :src="matchedExistingItem.image" class="w-100 rounded" style="max-height: 200px; object-fit: contain; filter: grayscale(50%);">
                         <div class="mt-2 text-muted fw-bold"><i class="bi bi-link-45deg"></i> 將使用這張舊照片</div>
                     </div>
@@ -259,10 +259,12 @@ export default {
         return props.allItems.find(i => i.name === formItem.value.name && i.zone === formItem.value.zone)
     })
 
-    // 當發現同名物品時，預設開啟「沿用舊照片」
+    // 當發現同名物品時，預設開啟「沿用舊照片」；若消失則關閉
     watch(matchedExistingItem, (newVal) => {
         if (newVal) {
             formItem.value.useExistingImage = true
+        } else {
+            formItem.value.useExistingImage = false
         }
     })
     

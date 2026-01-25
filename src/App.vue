@@ -161,38 +161,38 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
-import { initializeApp } from 'firebase/app'
-import { getFirestore, collection, deleteDoc, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+// Firebase core imports moved to composables
+// import { initializeApp } from 'firebase/app'
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
+// import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION } from './utils/constants'
 import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
 import { initSecurity } from './utils/security'
-// Bootstrap is now handled via useBootstrap composable
+
+// Composables
+import { useBootstrap } from './composables/useBootstrap'
+import { useFirebase } from './composables/useFirebase'
+import { useFamilyData } from './composables/useFamilyData'
 
 // Components
-// Components - Keep Core Components Sync
 import HomeView from './components/HomeView.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
 
 // Components - Lazy Load Others
 const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
 const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
-// const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
-// const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
 const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
-// const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
 
 import ToBuyListPage from './components/ToBuyListPage.vue'
 import ShoppingCartPage from './components/ShoppingCartPage.vue'
 import SettingsPage from './components/SettingsPage.vue'
 
-// Composables
-import { useBootstrap } from './composables/useBootstrap'
-
+// Init Composables
 const { 
   toastMessage, 
   toastEl, 
@@ -204,33 +204,38 @@ const {
   cleanupSidebar 
 } = useBootstrap()
 
-const appVersion = APP_VERSION
+const {
+  db,
+  currentUser,
+  isConfigured,
+  initFirebase,
+  checkConfig,
+  linkGoogleAccount: firebaseLinkGoogle,
+  unlinkGoogleAccount: firebaseUnlinkGoogle,
+  resetApp
+} = useFirebase()
 
-// Firebase globals
-let appFirebase
-let db
-let auth
+const {
+  items,
+  familySettings,
+  isLoading,
+  currentUserName,
+  setupError,
+  isSettingUp,
+  initFamilyData,
+  updateFamilyName,
+  updateUserName
+} = useFamilyData()
+
+const appVersion = APP_VERSION
 
 // ==================== 狀態變數 ====================
 
 // 設定相關
-const isConfigured = ref(false)
-const isSettingUp = ref(false)
 const inputConfigStr = ref("")
 const inputUserName = ref("")
-const currentUserName = ref("")
-const setupError = ref("")
-const currentUser = ref(null)
-
-// 資料
-const items = ref([])
-const familySettings = ref({
-  familyName: "我的家庭",
-  members: []
-})
 
 // UI 狀態
-const isLoading = ref(false)
 const currentPage = ref("home")
 const previousPage = ref("home")
 const savedScrollY = ref(0)
@@ -276,52 +281,35 @@ const latestLog = computed(() => updateLogs.value.find(l => l.version === latest
 
 // ==================== 方法 ====================
 
-// showToast logic is now handled by useBootstrap
-
-// Firebase 初始化
-const initFirebase = async (config, userName) => {
-  try {
-    if (!appFirebase) {
-      appFirebase = initializeApp(config)
-      db = getFirestore(appFirebase)
-      auth = getAuth(appFirebase)
-      
-      onAuthStateChanged(auth, (user) => {
-        currentUser.value = user
-      })
-    }
+// 初始化流程
+onMounted(async () => {
+    initSecurity()
+    loadSettings()
     
-    currentUserName.value = userName
-    localStorage.setItem("fridge_user_name", userName)
+    window.addEventListener('scroll', () => {
+      showScrollTop.value = window.scrollY > 300
+    })
+
+    const config = await checkConfig()
     
-    isConfigured.value = true
-    isLoading.value = true
-
-    await checkAndJoinFamily(userName)
-    startListeners()
-  } catch (e) {
-    throw e
-  }
-}
-
-const checkConfig = async () => {
-  const storedConfig = localStorage.getItem("fridge_firebase_config")
-  const storedUser = localStorage.getItem("fridge_user_name")
-
-  if (storedConfig && storedUser) {
-    try {
-      const configObj = JSON.parse(storedConfig)
-      await initFirebase(configObj, storedUser)
-    } catch (e) {
-      console.error("Config load error", e)
-      localStorage.removeItem("fridge_firebase_config")
-      isConfigured.value = false
+    if (config) {
+        // 已有設定，初始化 Firebase
+        try {
+            await initFirebase(config)
+            
+            // 讀取 User Name
+            const storedUser = localStorage.getItem("fridge_user_name")
+            if (storedUser) {
+                await initFamilyData(storedUser)
+            }
+        } catch (e) {
+             console.error("Init Failed", e)
+             isConfigured.value = false
+        }
     }
-  } else {
-    isConfigured.value = false
-  }
-}
+})
 
+// 保存初始設定 (SetupScreen)
 const saveInitialConfig = async () => {
   setupError.value = ""
   if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
@@ -344,104 +332,36 @@ const saveInitialConfig = async () => {
     const configObj = (new Function(`return ${cleanStr}`))()
     if (!configObj.projectId) throw new Error("無效的設定內容")
 
-    await initFirebase(configObj, inputUserName.value.trim())
+    await initFirebase(configObj)
+    await initFamilyData(inputUserName.value.trim())
+    
     localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj))
     
   } catch (e) {
     console.error(e)
     setupError.value = "設定失敗，請檢查代碼是否正確或是網路連線異常"
-    appFirebase = null
   } finally {
     isSettingUp.value = false
   }
 }
 
-// 家庭設定
-const checkAndJoinFamily = async (userName) => {
-  const settingsRef = doc(db, "family_metadata", "general")
-  try {
-    const docSnap = await getDoc(settingsRef)
-    if (!docSnap.exists()) {
-      await setDoc(settingsRef, {
-        familyName: "我的家庭",
-        members: [userName]
-      })
-      familySettings.value = { familyName: "我的家庭", members: [userName] }
-    } else {
-      const data = docSnap.data()
-      let members = data.members || []
-      if (!members.includes(userName)) {
-        members.push(userName)
-        await updateDoc(settingsRef, { members: members })
-      }
-      familySettings.value = {
-        familyName: data.familyName || "我的家庭",
-        members: members
-      }
-    }
-  } catch (e) {
-    console.error("Family Setup Error", e)
-  }
-}
-
-const startListeners = () => {
-  onSnapshot(collection(db, "fridge_items"), (snapshot) => {
-    items.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-    isLoading.value = false
-    showUpdateModal(false)
-  })
-
-  onSnapshot(doc(db, "family_metadata", "general"), (docSnap) => {
-    if (docSnap.exists()) {
-      const data = docSnap.data()
-      familySettings.value.familyName = data.familyName
-      familySettings.value.members = data.members || []
-      
-      if (data.latest_rename) {
-        const { from, to, at } = data.latest_rename
-        const now = Date.now()
-        if (from === currentUserName.value && (now - at < 60000)) {
-          currentUserName.value = to
-          localStorage.setItem("fridge_user_name", to)
-        }
-      }
-    }
-  })
-}
-
-// Google Auth
+// Google Auth Wrappers
 const linkGoogleAccount = async () => {
-  if (!auth) return
-  const provider = new GoogleAuthProvider()
-  try {
-    await signInWithPopup(auth, provider)
-    showToast("綁定成功！")
-  } catch (error) {
-    console.error("Auth Error:", error)
-    alert("綁定失敗：" + error.message)
-  }
+    const res = await firebaseLinkGoogle()
+    if (res.success) showToast("綁定成功！")
+    else alert("綁定失敗：" + res.error)
 }
 
 const unlinkGoogleAccount = async () => {
-  if (!auth) return
-  try {
-    await signOut(auth)
-    showToast("已解除綁定")
-  } catch (error) {
-    console.error("SignOut Error", error)
-  }
+    const res = await firebaseUnlinkGoogle()
+    if (res.success) showToast("已解除綁定")
+    else alert("解除綁定失敗")
 }
 
-// Google Auth
+// Rename Wrappers
 const saveFamilyName = async (newName) => {
-  if (!newName?.trim()) return
-  try {
-    await updateDoc(doc(db, "family_metadata", "general"), {
-      familyName: newName.trim()
-    })
-  } catch (e) {
-    alert("更新失敗")
-  }
+    const success = await updateFamilyName(newName)
+    if (!success) alert("更新失敗")
 }
 
 const startEditUserName = (name) => {
@@ -453,27 +373,24 @@ const startEditUserName = (name) => {
 const confirmEditUserName = async () => {
   const newName = editUserNameTemp.value.trim()
   const oldName = currentUserName.value
+  
   if (!newName) { nameEditError.value = "名稱不能為空"; return }
   if (newName === oldName) { hideModal('editNameModal'); return }
   
-  try {
-    const updatedMembers = familySettings.value.members.filter(m => m !== oldName)
-    updatedMembers.push(newName)
-    await updateDoc(doc(db, "family_metadata", "general"), {
-      members: updatedMembers,
-      latest_rename: { from: oldName, to: newName, at: Date.now() }
-    })
-    currentUserName.value = newName
-    localStorage.setItem("fridge_user_name", newName)
-    hideModal('editNameModal')
-  } catch (e) { nameEditError.value = "更新失敗" }
+  const success = await updateUserName(oldName, newName)
+  if (success) {
+      hideModal('editNameModal')
+  } else {
+      nameEditError.value = "更新失敗"
+  }
 }
 
+
+// Settings Logic
 const handleSettingsChange = (newSettings) => {
   settings.value = newSettings
   saveSettings()
 }
-
 
 const loadSettings = () => {
   const saved = localStorage.getItem("fridge_settings_v1")
@@ -489,13 +406,6 @@ const saveSettings = () => {
   localStorage.setItem("fridge_settings_v1", JSON.stringify(settings.value))
 }
 
-const resetApp = () => {
-  if(confirm("確定要重設嗎？這將會清除此裝置的登入資訊（冰箱資料會保留在雲端）。")) {
-    localStorage.removeItem("fridge_firebase_config")
-    localStorage.removeItem("fridge_user_name")
-    location.reload()
-  }
-}
 
 // 版本更新
 const showUpdateModal = (force = false) => {
@@ -645,14 +555,14 @@ const goToTakeOutPage = (item) => {
 
 // 取出物品
 const confirmTakeOutAction = async () => {
-  if (!db || !itemToDelete.value) return
+  if (!db.value || !itemToDelete.value) return
 
   const takeQty = parseInt(takeOutAmount.value)
   const currentQty = parseInt(itemToDelete.value.quantity)
 
   if (takeQty >= currentQty) {
     try {
-      await updateDoc(doc(db, "fridge_items", itemToDelete.value.id), {
+      await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), {
         quantity: 0,
         batches: [],
         storedDate: "",
@@ -709,7 +619,7 @@ const confirmTakeOutAction = async () => {
     }
 
     const result = recalculateItemFromBatches(newBatches, itemToDelete.value.owners)
-    await updateDoc(doc(db, "fridge_items", itemToDelete.value.id), { ...result })
+    await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), { ...result })
     
     goHome()
   } catch(e) {
@@ -721,14 +631,14 @@ const confirmTakeOutAction = async () => {
 // 刪除
 const deleteItemPermanently = async (id) => {
   if(confirm("確定要永久刪除此物品嗎？此操作無法復原。")) {
-    await deleteDoc(doc(db, "fridge_items", id))
+    await deleteDoc(doc(db.value, "fridge_items", id))
     if(currentPage.value === 'edit') goHome()
   }
 }
 
 const deleteSelectedNoStock = async () => {
   if(confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
-    const promises = selectedHomeIds.value.map(id => deleteDoc(doc(db, "fridge_items", id)))
+    const promises = selectedHomeIds.value.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
     await Promise.all(promises)
     selectedHomeIds.value = []
     isSelectionMode.value = false
@@ -738,7 +648,7 @@ const deleteSelectedNoStock = async () => {
 // 批次加入待買
 const addBatchToBuy = async () => {
   const promises = selectedHomeIds.value.map(id => 
-    updateDoc(doc(db, "fridge_items", id), { shoppingStatus: 'toBuy' })
+    updateDoc(doc(db.value, "fridge_items", id), { shoppingStatus: 'toBuy' })
   )
   await Promise.all(promises)
   showToast("已加入待購買清單")
@@ -855,17 +765,6 @@ const toBuyList = computed(() => {
 
 const cartList = computed(() => {
   return items.value.filter(i => i.shoppingStatus === 'inCart')
-})
-
-// Lifecycle
-onMounted(() => {
-  initSecurity()
-  loadSettings()
-  checkConfig()
-  
-  window.addEventListener('scroll', () => {
-    showScrollTop.value = window.scrollY > 300
-  })
 })
 
 watch(() => settings.value.updateNotifyEnabled, () => {

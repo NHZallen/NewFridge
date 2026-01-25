@@ -161,10 +161,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
-// Firebase core imports moved to composables
-// import { initializeApp } from 'firebase/app'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
-// import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { storeToRefs } from 'pinia'
 
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION } from './utils/constants'
@@ -177,22 +175,37 @@ import { initSecurity } from './utils/security'
 import { useBootstrap } from './composables/useBootstrap'
 import { useFirebase } from './composables/useFirebase'
 import { useFamilyData } from './composables/useFamilyData'
+import { useMainStore } from './stores/index.js'
 
 // Components
 import HomeView from './components/HomeView.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
 
-// Components - Lazy Load Others
-const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
-const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
-const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
-const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
+// Components - Standard Imports for Stability
+import SetupScreen from './components/SetupScreen.vue'
+import ItemForm from './components/ItemForm.vue'
+import TakeOutPage from './components/TakeOutPage.vue'
+import UpdateInfoPage from './components/UpdateInfoPage.vue'
 
 import ToBuyListPage from './components/ToBuyListPage.vue'
 import ShoppingCartPage from './components/ShoppingCartPage.vue'
 import SettingsPage from './components/SettingsPage.vue'
 
-// Init Composables
+// Init Composables & Store
+const store = useMainStore()
+const {
+  items: storeItems, 
+  familySettings: storeFamilySettings, 
+  currentUser: storeCurrentUser,
+  isLoading: storeIsLoading,
+  searchText,
+  filterZone,
+  filteredItems,
+  zoneStats,
+  toBuyList,
+  cartList
+} = storeToRefs(store)
+
 const { 
   toastMessage, 
   toastEl, 
@@ -216,9 +229,9 @@ const {
 } = useFirebase()
 
 const {
-  items,
-  familySettings,
-  isLoading,
+  items: rawItems,
+  familySettings: rawFamilySettings,
+  isLoading: rawIsLoading,
   currentUserName,
   setupError,
   isSettingUp,
@@ -226,6 +239,12 @@ const {
   updateFamilyName,
   updateUserName
 } = useFamilyData()
+
+// Sync Composables -> Store
+watch(rawItems, (val) => { store.setItems(val) }, { deep: true, immediate: true })
+watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { deep: true, immediate: true })
+watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
+watch(rawIsLoading, (val) => { store.setLoading(val) }, { immediate: true })
 
 const appVersion = APP_VERSION
 

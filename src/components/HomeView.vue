@@ -79,6 +79,14 @@
                 <img v-if="item.image" :src="item.image" class="item-img" loading="lazy">
                 <div v-else class="text-muted"><i class="bi bi-image fs-1"></i></div>
                 <div class="zone-bar" :style="{ backgroundColor: getZoneColor(item.zone) }"></div>
+                
+                <!-- 狀態懸浮標籤 (方案一) -->
+                <div class="status-badge to-buy" v-if="item.shoppingStatus === 'toBuy'">
+                    <i class="bi bi-cart-plus me-1"></i>待買
+                </div>
+                <div class="status-badge in-cart" v-else-if="item.shoppingStatus === 'inCart'">
+                    <i class="bi bi-cart-check me-1"></i>已拿
+                </div>
             </div>
 
             <div class="card-body p-2 d-flex flex-column">
@@ -94,13 +102,7 @@
                     </small>
                 </div>
 
-                <!-- 購物狀態顯示 -->
-                <div class="mb-2" v-if="item.shoppingStatus === 'toBuy'">
-                    <span class="badge bg-info text-dark w-100"><i class="bi bi-cart-plus me-1"></i>待購買</span>
-                </div>
-                <div class="mb-2" v-else-if="item.shoppingStatus === 'inCart'">
-                    <span class="badge bg-warning text-dark w-100"><i class="bi bi-cart-check me-1"></i>購物車中</span>
-                </div>
+
 
                 <div v-if="filterZone !== 'nostock'">
                     <div class="mb-2">
@@ -239,5 +241,34 @@ const handleCardClick = (item) => {
 /* 簡單的 CSS 優化 */
 .item-card {
   contain: content; /* 告訴瀏覽器這個元素的內容不會影響外部 */
+}
+
+/* 狀態懸浮標籤樣式 */
+.item-img-box {
+    position: relative; /* 確保 absolute 子元素定位正確 */
+}
+
+.status-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    backdrop-filter: blur(4px);
+    z-index: 2;
+}
+
+.status-badge.to-buy {
+    background-color: rgba(13, 202, 240, 0.9); /* Bootstrap info color */
+    color: #000;
+}
+
+.status-badge.in-cart {
+    background-color: rgba(255, 193, 7, 0.9); /* Bootstrap warning color */
+    color: #000;
 }
 </style>

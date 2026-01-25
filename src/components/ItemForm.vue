@@ -137,13 +137,22 @@
                     </div>
                 </div>
                 
-                <div class="mb-4">
+                <div class="mb-4 position-relative">
                     <label class="form-label fw-bold">{{ (formItem.quantity != 0 || formItem.quantity === '') ? '7.' : '4.' }} 物品所有人</label>
+                    
+                    <!-- 隱形遮罩，用來點擊外部關閉選單 -->
+                    <div v-if="showOwnerDropdown" class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040; cursor: default;" @click="showOwnerDropdown = false"></div>
+
                     <div class="dropdown w-100">
-                        <button class="btn btn-outline-dark dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-outline-dark dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" 
+                                type="button" 
+                                @click="showOwnerDropdown = !showOwnerDropdown"
+                                style="position: relative; z-index: 1050;">
                             <span class="text-truncate">{{ formatOwners(formItem.owners) }}</span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-custom shadow border-0">
+                        <ul class="dropdown-menu dropdown-menu-custom shadow border-0" 
+                            :class="{ show: showOwnerDropdown }"
+                            style="z-index: 1051;">
                             <li>
                                 <label class="dropdown-item-custom">
                                     <input type="checkbox" class="form-check-input" 
@@ -204,6 +213,7 @@ export default {
     const formItem = ref({ ...props.initialItem })
     const isCompressing = ref(false)
     const isUploading = ref(false)
+    const showOwnerDropdown = ref(false)
 
     // 使用 composable 取得 compressFile
     const { compressFile } = useImageCompression()
@@ -429,7 +439,8 @@ export default {
         toggleOwner,
         toggleToBuyStatus,
         processImage,
-        submitItem
+        submitItem,
+        showOwnerDropdown
     }
   }
 }

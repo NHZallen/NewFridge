@@ -74,7 +74,7 @@
         </div>
         <div class="text-muted small mb-3">只有您可以修改自己的名稱，修改後所有裝置會自動同步。</div>
 
-        <div class="d-flex flex-column">
+        <div class="d-flex flex-column gap-3">
           <div v-for="member in familySettings.members" :key="member" class="member-row d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
               <i class="bi bi-person-circle text-secondary fs-4"></i>

@@ -304,6 +304,7 @@ const latestLog = computed(() => updateLogs.value.find(l => l.version === latest
 onMounted(async () => {
     initSecurity()
     loadSettings()
+    showUpdateModal()
     
     window.addEventListener('scroll', () => {
       showScrollTop.value = window.scrollY > 300

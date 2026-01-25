@@ -194,10 +194,10 @@ import SettingsPage from './components/SettingsPage.vue'
 // Init Composables & Store
 const store = useMainStore()
 const {
-  items: storeItems, 
-  familySettings: storeFamilySettings, 
+  items, 
+  familySettings, 
   currentUser: storeCurrentUser,
-  isLoading: storeIsLoading,
+  isLoading,
   searchText,
   filterZone,
   filteredItems,

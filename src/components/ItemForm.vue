@@ -143,7 +143,7 @@
                     <!-- 隱形遮罩，用來點擊外部關閉選單 -->
                     <div v-if="showOwnerDropdown" class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040; cursor: default;" @click="showOwnerDropdown = false"></div>
 
-                    <div class="dropdown w-100">
+                    <div class="dropdown dropup w-100">
                         <button class="btn btn-outline-dark dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center" 
                                 type="button" 
                                 @click="showOwnerDropdown = !showOwnerDropdown"

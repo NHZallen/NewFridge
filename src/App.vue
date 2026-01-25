@@ -180,11 +180,15 @@ import SidebarMenu from './components/SidebarMenu.vue'
 // Components - Lazy Load Others
 const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
 const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
-const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
-const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
+// const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
+// const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
 const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
-const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
+// const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
+
+import ToBuyListPage from './components/ToBuyListPage.vue'
+import ShoppingCartPage from './components/ShoppingCartPage.vue'
+import SettingsPage from './components/SettingsPage.vue'
 
 // Composables
 import { useBootstrap } from './composables/useBootstrap'

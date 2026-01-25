@@ -118,8 +118,10 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">6. 到期日（可不填）</label>
-                        <input type="date" class="form-control form-control-lg" v-model="formItem.expiryDate" :disabled="formItem.noExpiry">
+                        <div v-if="!formItem.noExpiry">
+                            <label class="form-label fw-bold">6. 到期日（可不填）</label>
+                            <input type="date" class="form-control form-control-lg" v-model="formItem.expiryDate">
+                        </div>
 
                         <div class="form-check form-switch mt-3">
                             <input class="form-check-input" type="checkbox" id="noExpirySwitch" v-model="formItem.noExpiry">
@@ -219,6 +221,13 @@ export default {
         if (props.mode !== 'add') return null
         if (!formItem.value.name) return null
         return props.allItems.find(i => i.name === formItem.value.name)
+    })
+
+    // 當發現同名物品時，預設開啟「沿用舊照片」
+    watch(matchedExistingItem, (newVal) => {
+        if (newVal) {
+            formItem.value.useExistingImage = true
+        }
     })
 
     const addDays = (days) => {

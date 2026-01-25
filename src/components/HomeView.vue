@@ -109,8 +109,9 @@
                     </div>
                     <div v-if="isNoExpiry(item)" class="badge bg-light text-secondary border w-100 mb-2">無期限</div>
                     <template v-else>
-                        <div v-if="getDays(item.expiryDate) < 0" class="badge bg-danger w-100 mb-2">已過期 ({{ item.expiryDate }})</div>
-                        <div v-else-if="getDays(item.expiryDate) <= 3" class="badge bg-danger w-100 mb-2">剩 {{ getDays(item.expiryDate) }} 天!</div>
+                        <div v-if="getDays(item.expiryDate) <= 0" class="badge bg-danger w-100 mb-2">
+                            {{ getDays(item.expiryDate) === 0 ? '今天到期' : `已過期 (${item.expiryDate})` }}
+                        </div>
                         <div v-else-if="getDays(item.expiryDate) <= 7" class="badge bg-warning text-dark w-100 mb-2">剩 {{ getDays(item.expiryDate) }} 天</div>
                         <div v-else class="badge bg-light text-secondary border w-100 mb-2">{{ item.expiryDate }}</div>
                     </template>

@@ -42,7 +42,7 @@ export const getAlertClass = (item) => {
     if (isNoExpiry(item)) return ''
     const days = getDays(item.expiryDate)
     if (days === null) return ''
-    if (days < 0) return 'border-danger expired-item'
+    if (days <= 0) return 'border-danger expired-item'
     if (days <= 7) return 'border-warning warning-item'
     return ''
 }

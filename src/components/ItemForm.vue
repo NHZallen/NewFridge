@@ -421,10 +421,11 @@ export default {
             };
 
             if (formItem.value.id) {
-                // === 編輯 ===
+                // === 編輯模式 (Edit Mode) ===
                 const oldItemRef = props.allItems.find(i => i.id === formItem.value.id);
                 let batches = oldItemRef && oldItemRef.batches ? [...oldItemRef.batches] : [];
                 
+                // Fallback for legacy items without batches
                 if (batches.length === 0 && oldItemRef && parseInt(oldItemRef.quantity) > 0) {
                       batches = [{
                         storedDate: oldItemRef.storedDate,
@@ -436,19 +437,101 @@ export default {
                       }];
                 }
 
-                // If editing the main item card, we usually update the "current" batch or add a new one?
-                // The original logic seemed to just update index 0 or push new. 
-                // We'll keep original logic integrity but ensure image is correct.
-                
-                // Original logic:
-                // if (batches[0]) batches[0] = ... else batches.push(...)
-                // This logic implies we are ALWAYS editing the "first" batch or adding one if empty.
-                // This might be a simplification in the original app, we stick to it.
-                
-                if (batches[0]) {
-                    batches[0] = { ...batches[0], ...newBatch };
+                // Calculate current total quantity from batches
+                const currentTotal = batches.reduce((sum, b) => sum + parseInt(b.quantity || 0), 0);
+                const targetTotal = safeQuantity;
+                const diff = targetTotal - currentTotal;
+
+                if (diff > 0) {
+                     // === 增加數量 (Add Quantity) ===
+                     // Simply add a new batch with the difference
+                     const batchToAdd = {
+                        ...newBatch,
+                        quantity: diff // Override the quantity with the difference
+                     };
+                     batches.push(batchToAdd);
+
+                } else if (diff < 0) {
+                    // === 減少數量 (Reduce Quantity) ===
+                     // We need to remove 'abs(diff)' from existing batches
+                     // Logic similar to "Take Out": remove from oldest/first batches
+                     
+                     // Sort batches first (Expiry -> Stored) to ensure we remove from the "front"
+                     batches.sort((a, b) => {
+                        const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31");
+                        const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31");
+                        if (dateA < dateB) return -1;
+                        if (dateA > dateB) return 1;
+                        const storeA = a.storedDate || "9999-12-31";
+                        const storeB = b.storedDate || "9999-12-31";
+                        if (storeA < storeB) return -1;
+                        if (storeA > storeB) return 1;
+                        return 0;
+                    });
+
+                    let amountToRemove = Math.abs(diff);
+                    const newBatches = [];
+                    const imagesPotentiallyDeleted = new Set(); // Track images from removed/reduced batches
+
+                    for (let batch of batches) {
+                        if (amountToRemove <= 0) {
+                            newBatches.push(batch);
+                            continue;
+                        }
+
+                        let batchQty = parseInt(batch.quantity);
+                        
+                        // Track image for potential cleanup analysis
+                        if (batch.image) imagesPotentiallyDeleted.add(batch.image);
+
+                        if (batchQty > amountToRemove) {
+                            // Partial reduce
+                            batch.quantity = batchQty - amountToRemove;
+                            amountToRemove = 0;
+                            newBatches.push(batch);
+                        } else {
+                            // Full remove of this batch
+                            amountToRemove -= batchQty;
+                            // Do not push to newBatches
+                        }
+                    }
+                    
+                    batches = newBatches;
+                    
+                    // --- Image Cleanup Logic (similar to App.vue) ---
+                    // Identify images still in use
+                    const remainingImages = new Set();
+                    if (newBatch.image) remainingImages.add(newBatch.image); // The "new" image from form is definitely in use if we kept it? 
+                    // Wait, newBatch is only used if we ADDED, but here we reduced. 
+                    // However, the recalculate function will pick a new main image.
+                    
+                    batches.forEach(b => {
+                        if (b.image) remainingImages.add(b.image);
+                    });
+
+                    // Check which images are truly gone
+                    imagesPotentiallyDeleted.forEach(url => {
+                        if (!remainingImages.has(url)) {
+                             console.log("Edit Limit: Deleting unused image:", url);
+                             deleteImage(url);
+                        }
+                    });
+
                 } else {
-                    batches.push(newBatch);
+                    // === 數量不變 (No Quantity Change) ===
+                    // Just update the metadata of the FIRST batch or Main Item?
+                    // User might want to update the "image" or "expiry" of the *current* items.
+                    // Reasonable approach: Update the first batch's details to match form.
+                    if (batches.length > 0) {
+                         // We only update non-quantity fields here because quantity is total
+                         batches[0] = {
+                             ...batches[0],
+                             storedDate: newBatch.storedDate,
+                             expiryDate: newBatch.expiryDate,
+                             noExpiry: newBatch.noExpiry,
+                             image: newBatch.image // Update image if changed
+                         };
+                    }
                 }
 
                 const result = recalculateItemFromBatches(batches, ownersFinal);
@@ -462,11 +545,11 @@ export default {
                 });
 
             } else {
-                // === 新增 ===
+                // === 新增模式 (Add Mode) ===
                 const targetItem = matchedExistingItem.value;
 
                 if (targetItem) {
-                    // 合併到現有物品
+                    // 合併到現有物品 (Merge)
                     let batches = [];
                     if (parseInt(targetItem.quantity) > 0) {
                         batches = targetItem.batches ? [...targetItem.batches] : [{
@@ -484,7 +567,12 @@ export default {
                     } 
                     // else newBatch.image is already finalImageUrl
 
+                    // In "Add Mode" with "Merge", the user input quantity is *additional* quantity.
+                    // The UI logic:
+                    // If mode='add', safeQuantity IS the quantity to add.
+                    // So we just push it.
                     batches.push(newBatch);
+                    
                     const targetOwners = targetItem.owners || ['全家'];
                     const result = recalculateItemFromBatches(batches, targetOwners); 
 

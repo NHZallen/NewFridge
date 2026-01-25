@@ -162,6 +162,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { deleteImage } from './utils/storageUtils.js'
 import { storeToRefs } from 'pinia'
 
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
@@ -639,6 +640,30 @@ const confirmTakeOutAction = async () => {
     }
 
     const result = recalculateItemFromBatches(newBatches, itemToDelete.value.owners)
+    
+    // --- Image Cleanup Logic ---
+    // 1. Identify images in the NEW (remaining) batches
+    const remainingImages = new Set();
+    if (result.image) remainingImages.add(result.image);
+    newBatches.forEach(b => {
+        if (b.image) remainingImages.add(b.image);
+    });
+
+    // 2. Identify images in the OLD (original) batches that are NOT in the remaining set
+    const imagesToDelete = new Set();
+    batches.forEach(b => {
+        if (b.image && !remainingImages.has(b.image)) {
+            imagesToDelete.add(b.image);
+        }
+    });
+
+    // 3. Delete them
+    if (imagesToDelete.size > 0) {
+        console.log("Cleanup: Deleting unused images:", Array.from(imagesToDelete));
+        imagesToDelete.forEach(url => deleteImage(url));
+    }
+    // ---------------------------
+
     await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), { ...result })
     
     goHome()

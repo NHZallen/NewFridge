@@ -583,6 +583,20 @@ const confirmTakeOutAction = async () => {
 
   if (takeQty >= currentQty) {
     try {
+      // --- Image Cleanup (Full Take Out) ---
+      const imagesToDelete = new Set();
+      if (itemToDelete.value.image) imagesToDelete.add(itemToDelete.value.image);
+      if (itemToDelete.value.batches) {
+          itemToDelete.value.batches.forEach(b => {
+              if (b.image) imagesToDelete.add(b.image);
+          });
+      }
+      if (imagesToDelete.size > 0) {
+          console.log("Cleanup (Full Takeout): Deleting images:", Array.from(imagesToDelete));
+          imagesToDelete.forEach(url => deleteImage(url));
+      }
+      // -------------------------------------
+
       await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), {
         quantity: 0,
         batches: [],
@@ -676,6 +690,23 @@ const confirmTakeOutAction = async () => {
 // 刪除
 const deleteItemPermanently = async (id) => {
   if(confirm("確定要永久刪除此物品嗎？此操作無法復原。")) {
+    // --- Image Cleanup (Delete) ---
+    const item = items.value.find(i => i.id === id);
+    if (item) {
+        const imagesToDelete = new Set();
+        if (item.image) imagesToDelete.add(item.image);
+        if (item.batches) {
+            item.batches.forEach(b => {
+                if (b.image) imagesToDelete.add(b.image);
+            });
+        }
+        if (imagesToDelete.size > 0) {
+            console.log("Cleanup (Delete): Deleting images:", Array.from(imagesToDelete));
+            imagesToDelete.forEach(url => deleteImage(url));
+        }
+    }
+    // ------------------------------
+
     await deleteDoc(doc(db.value, "fridge_items", id))
     if(currentPage.value === 'edit') goHome()
   }
@@ -683,6 +714,25 @@ const deleteItemPermanently = async (id) => {
 
 const deleteSelectedNoStock = async () => {
   if(confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
+    
+    // --- Image Cleanup (Batch Delete) ---
+    for (const id of selectedHomeIds.value) {
+        const item = items.value.find(i => i.id === id);
+        if (item) {
+            const imagesToDelete = new Set();
+            if (item.image) imagesToDelete.add(item.image);
+            if (item.batches) {
+                item.batches.forEach(b => {
+                    if (b.image) imagesToDelete.add(b.image);
+                });
+            }
+            if (imagesToDelete.size > 0) {
+                 imagesToDelete.forEach(url => deleteImage(url));
+            }
+        }
+    }
+    // ------------------------------------
+
     const promises = selectedHomeIds.value.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
     await Promise.all(promises)
     selectedHomeIds.value = []

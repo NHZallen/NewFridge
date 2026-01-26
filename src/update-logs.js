@@ -1,6 +1,14 @@
-export const LATEST_VERSION = "1.10.0";
+export const LATEST_VERSION = "1.11.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.11.0",
+    date: "2026-01-26",
+    title: "跨區物品重複提示",
+    changes: [
+      "新增重複物品偵測與提示：當新增的物品在其他區域已存在時，系統將主動提示並提供一鍵切換區域功能，方便直接沿用舊照片與設定"
+    ]
+  },
   {
     version: "1.10.0",
     date: "2026-01-25",

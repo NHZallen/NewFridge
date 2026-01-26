@@ -76,6 +76,19 @@
                     </div>
                 </div>
 
+                <!-- 跨區重複提示 -->
+                <div v-if="matchedOtherZoneItem" class="alert alert-info d-flex align-items-start mb-3" role="alert">
+                    <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+                    <div>
+                        <div class="fw-bold">其他區域已有此物品</div>
+                        <div class="small mb-2">「{{ getZoneName(matchedOtherZoneItem.zone) }}」已有「{{ matchedOtherZoneItem.name }}」，建議切換區域以繼承照片與設定。</div>
+                        <button type="button" class="btn btn-sm btn-light border-primary text-primary rounded-pill fw-bold" 
+                                @click="formItem.zone = matchedOtherZoneItem.zone">
+                            <i class="bi bi-arrow-repeat me-1"></i>切換至{{ getZoneName(matchedOtherZoneItem.zone) }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 圖片區 -->
                 <div class="mb-4">
                     <label class="form-label fw-bold fs-5">3. 物品照片</label>
@@ -258,6 +271,18 @@ export default {
         // Strict match: Name AND Zone
         return props.allItems.find(i => i.name === formItem.value.name && i.zone === formItem.value.zone)
     })
+
+    const matchedOtherZoneItem = computed(() => {
+        if (props.mode !== 'add') return null
+        if (!formItem.value.name) return null
+        // Same name but DIFFERENT zone
+        return props.allItems.find(i => i.name === formItem.value.name && i.zone !== formItem.value.zone)
+    })
+
+    const getZoneName = (zone) => {
+        const map = { cold: '冷藏區', frozen: '冷凍區', veggie: '蔬果區' }
+        return map[zone] || zone
+    }
 
     // 當發現同名物品時，預設開啟「沿用舊照片」；若消失則關閉
     watch(matchedExistingItem, (newVal) => {
@@ -639,7 +664,9 @@ export default {
         showOwnerDropdown,
         ownerFieldIndex,
         handleDelete,
-        displayImage
+        displayImage,
+        matchedOtherZoneItem,
+        getZoneName
     }
   }
 }

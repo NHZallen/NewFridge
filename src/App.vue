@@ -182,15 +182,25 @@ import { useMainStore } from './stores/index.js'
 import HomeView from './components/HomeView.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
 
-// Components - Async Imports for Performance
-const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
-const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
-const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
-const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
+import LoadingSpinner from './components/LoadingSpinner.vue'
 
-const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
-const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
-const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
+// Helper for Async Components with Loading State
+const asyncOptions = (loader) => ({
+  loader,
+  loadingComponent: LoadingSpinner,
+  delay: 200, // Show loading spinner if loading takes more than 200ms
+  timeout: 10000 // Timeout after 10000ms
+})
+
+// Components - Async Imports for Performance
+const SetupScreen = defineAsyncComponent(asyncOptions(() => import('./components/SetupScreen.vue')))
+const ItemForm = defineAsyncComponent(asyncOptions(() => import('./components/ItemForm.vue')))
+const TakeOutPage = defineAsyncComponent(asyncOptions(() => import('./components/TakeOutPage.vue')))
+const UpdateInfoPage = defineAsyncComponent(asyncOptions(() => import('./components/UpdateInfoPage.vue')))
+
+const ToBuyListPage = defineAsyncComponent(asyncOptions(() => import('./components/ToBuyListPage.vue')))
+const ShoppingCartPage = defineAsyncComponent(asyncOptions(() => import('./components/ShoppingCartPage.vue')))
+const SettingsPage = defineAsyncComponent(asyncOptions(() => import('./components/SettingsPage.vue')))
 
 // Init Composables & Store
 const store = useMainStore()

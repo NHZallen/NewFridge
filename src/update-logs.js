@@ -1,6 +1,15 @@
-export const LATEST_VERSION = "1.11.0";
+export const LATEST_VERSION = "1.12.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.12.0",
+    date: "2026-01-27",
+    title: "效能最佳化與載入體驗升級",
+    changes: [
+      "開啟速度提升：透過元件懶加載技術，大幅減少初始下載容量，讓 App 啟動更迅速",
+      "全新載入動畫：切換頁面時新增直觀的載入狀態提示，告別畫面卡頓的錯覺"
+    ]
+  },
   {
     version: "1.11.0",
     date: "2026-01-26",

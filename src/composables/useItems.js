@@ -33,29 +33,37 @@ export function useItems(getDb) {
 
     // ==================== Computed ====================
 
-    const filteredItems = computed(() => {
-        const keyword = searchText.value?.trim() || ""
+    // 1. 區域過濾 (Zone Filter) - 依賴 items
+    const zonedItems = computed(() => {
         let list = items.value
 
-        // 搜尋過濾
-        if (keyword) {
-            const lowerKeyword = keyword.toLowerCase()
-            list = list.filter(i => (i.name || "").toLowerCase().includes(lowerKeyword))
-        }
-
-        // 區域與庫存過濾
         if (filterZone.value === 'nostock') {
             list = list.filter(i => parseInt(i.quantity) === 0)
         } else {
+            // 確保顯示的都是有庫存
             list = list.filter(i => parseInt(i.quantity) > 0)
 
             if (filterZone.value !== 'all') {
                 list = list.filter(i => (i.zone || 'cold') === filterZone.value)
             }
         }
+        return list
+    })
 
-        // 排序
-        return [...list].sort((a, b) => {
+    // 2. 搜尋過濾 (Search Filter) - 依賴 zonedItems
+    // 分離此層可大幅減少輸入時的計算量
+    const searchedItems = computed(() => {
+        const keyword = searchText.value?.trim() || ""
+        if (!keyword) return zonedItems.value
+
+        const lowerKeyword = keyword.toLowerCase()
+        return zonedItems.value.filter(i => (i.name || "").toLowerCase().includes(lowerKeyword))
+    })
+
+    // 3. 排序 (Sorting) - 依賴 searchedItems
+    // 只對最終結果進行排序
+    const filteredItems = computed(() => {
+        return [...searchedItems.value].sort((a, b) => {
             const getSortDate = (it) => {
                 if (isNoExpiry(it)) return "9999-12-31"
                 return it.expiryDate || "9999-12-31"

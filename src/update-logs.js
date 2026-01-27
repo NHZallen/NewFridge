@@ -1,6 +1,15 @@
-export const LATEST_VERSION = "1.13.0";
+export const LATEST_VERSION = "1.14.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.0",
+    date: "2026-01-27",
+    title: "前端渲染流暢度重大提升",
+    changes: [
+      "計算屬性快取優化 (Computed Property Splitting)：將複雜的過濾與排序邏輯拆分為三層階段，顯著提升在數百筆物品下的搜尋反應速度與滑動流暢度",
+      "精確依賴追蹤：重構 useItems 核心邏輯，確保僅在必要時進行重新計算，大幅減少手機 CPU 負荷，解決搜尋框快速輸入時的卡頓問題"
+    ]
+  },
   {
     version: "1.13.0",
     date: "2026-01-27",

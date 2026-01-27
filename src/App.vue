@@ -188,7 +188,7 @@ import LoadingSpinner from './components/LoadingSpinner.vue'
 const asyncOptions = (loader) => ({
   loader,
   loadingComponent: LoadingSpinner,
-  delay: 200, // Show loading spinner if loading takes more than 200ms
+  delay: 50, // Show loading spinner if loading takes more than 50ms
   timeout: 10000 // Timeout after 10000ms
 })
 

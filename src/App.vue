@@ -182,15 +182,15 @@ import { useMainStore } from './stores/index.js'
 import HomeView from './components/HomeView.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
 
-// Components - Standard Imports for Stability
-import SetupScreen from './components/SetupScreen.vue'
-import ItemForm from './components/ItemForm.vue'
-import TakeOutPage from './components/TakeOutPage.vue'
-import UpdateInfoPage from './components/UpdateInfoPage.vue'
+// Components - Async Imports for Performance
+const SetupScreen = defineAsyncComponent(() => import('./components/SetupScreen.vue'))
+const ItemForm = defineAsyncComponent(() => import('./components/ItemForm.vue'))
+const TakeOutPage = defineAsyncComponent(() => import('./components/TakeOutPage.vue'))
+const UpdateInfoPage = defineAsyncComponent(() => import('./components/UpdateInfoPage.vue'))
 
-import ToBuyListPage from './components/ToBuyListPage.vue'
-import ShoppingCartPage from './components/ShoppingCartPage.vue'
-import SettingsPage from './components/SettingsPage.vue'
+const ToBuyListPage = defineAsyncComponent(() => import('./components/ToBuyListPage.vue'))
+const ShoppingCartPage = defineAsyncComponent(() => import('./components/ShoppingCartPage.vue'))
+const SettingsPage = defineAsyncComponent(() => import('./components/SettingsPage.vue'))
 
 // Init Composables & Store
 const store = useMainStore()

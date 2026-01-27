@@ -613,128 +613,147 @@ const goToTakeOutPage = (item) => {
   nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
 }
 
-// 取出物品
+// 取出物品 (Optimistic UI)
 const confirmTakeOutAction = async () => {
   if (!db.value || !itemToDelete.value) return
 
   const takeQty = parseInt(takeOutAmount.value)
   const currentQty = parseInt(itemToDelete.value.quantity)
+  
+  // 1. Snapshot original state for rollback
+  const originalState = JSON.parse(JSON.stringify(itemToDelete.value))
+  const targetId = itemToDelete.value.id
 
-  if (takeQty >= currentQty) {
-    try {
-      // --- Image Cleanup (Full Take Out) ---
-      // Collect ALL images associated with this item
-      const allImages = new Set();
-      if (itemToDelete.value.image) allImages.add(itemToDelete.value.image);
-      if (itemToDelete.value.batches) {
-        itemToDelete.value.batches.forEach(b => {
-          if (b.image) allImages.add(b.image);
-        });
-      }
+  // Store Sync State
+  store.startSync()
+  
+  // Go home immediately (Optimistic)
+  goHome()
 
-      // Default to current main image
-      let imageToKeep = itemToDelete.value.image;
+  // 2. Calculate New State & Prepare Async Tasks
+  // We use a promise wrapper to handle async logic in background
+  const performUpdate = async () => {
+      try {
+          let updateData = {}
+          let imageCleanupTask = null
 
-      // Find the LATEST image from batches to be the new "Archive Photo"
-      if (itemToDelete.value.batches && itemToDelete.value.batches.length > 0) {
-          // Sort by addedAt desc (newest first)
-          const sortedBatches = [...itemToDelete.value.batches].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
-          const latestBatch = sortedBatches.find(b => b.image);
-          
-          if (latestBatch) {
-              imageToKeep = latestBatch.image;
+          if (takeQty >= currentQty) {
+            // === CASE 1: FULL TAKE OUT (DELETE) ===
+            
+            // --- Image Cleanup Plan ---
+            const allImages = new Set();
+            if (originalState.image) allImages.add(originalState.image);
+            if (originalState.batches) {
+                originalState.batches.forEach(b => {
+                    if (b.image) allImages.add(b.image);
+                });
+            }
+
+            let imageToKeep = originalState.image;
+            // Find LATEST image
+            if (originalState.batches && originalState.batches.length > 0) {
+                const sortedBatches = [...originalState.batches].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+                const latestBatch = sortedBatches.find(b => b.image);
+                if (latestBatch) imageToKeep = latestBatch.image;
+            }
+            
+            const keepingImages = imageToKeep ? [imageToKeep] : [];
+            imageCleanupTask = () => cleanupUnusedImages(allImages, keepingImages);
+
+            updateData = {
+                quantity: 0,
+                batches: [],
+                storedDate: "",
+                expiryDate: "",
+                noExpiry: true,
+                image: imageToKeep || null,
+                updatedAt: new Date()
+            }
+
+          } else {
+             // === CASE 2: PARTIAL TAKE OUT ===
+             let batches = originalState.batches ? [...originalState.batches] : [{
+                  storedDate: originalState.storedDate,
+                  expiryDate: originalState.expiryDate,
+                  noExpiry: originalState.noExpiry,
+                  quantity: currentQty,
+                  image: originalState.image
+             }]
+
+             // Sort logic
+             batches.sort((a, b) => {
+                const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31")
+                const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31")
+                if (dateA < dateB) return -1
+                if (dateA > dateB) return 1
+                const storeA = a.storedDate || "9999-12-31"
+                const storeB = b.storedDate || "9999-12-31"
+                if (storeA < storeB) return -1
+                if (storeA > storeB) return 1
+                return 0
+             })
+
+             let remainingToTake = takeQty
+             const newBatches = []
+             
+             for (let batch of batches) {
+                  if (remainingToTake <= 0) {
+                    newBatches.push(batch)
+                    continue
+                  }
+                  let batchQty = parseInt(batch.quantity)
+                  if (batchQty > remainingToTake) {
+                    // Clone batch to avoid reference issues
+                    const newBatch = { ...batch } 
+                    newBatch.quantity = batchQty - remainingToTake
+                    remainingToTake = 0
+                    newBatches.push(newBatch)
+                  } else {
+                    remainingToTake -= batchQty
+                  }
+             }
+             
+             const result = recalculateItemFromBatches(newBatches, originalState.owners)
+             updateData = { ...result }
+
+             // --- Image Cleanup Plan ---
+             const oldImages = new Set();
+             if (originalState.batches) {
+                 originalState.batches.forEach(b => { if (b.image) oldImages.add(b.image); });
+             }
+             const keepingImages = new Set();
+             if (result.image) keepingImages.add(result.image);
+             newBatches.forEach(b => { if (b.image) keepingImages.add(b.image); });
+             
+             imageCleanupTask = () => cleanupUnusedImages(oldImages, keepingImages);
           }
-      }
-      
-      const keepingImages = imageToKeep ? [imageToKeep] : [];
-      await cleanupUnusedImages(allImages, keepingImages);
-      // -------------------------------------
-      // -------------------------------------
 
-      await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), {
-        quantity: 0,
-        batches: [],
-        storedDate: "",
-        expiryDate: "",
-        noExpiry: true,
-        image: imageToKeep || null, // Explicitly update the image to the latest one
-        updatedAt: new Date()
-      })
-      goHome()
-    } catch (e) {
-      alert("更新失敗")
-    }
-    return
+          // 3. APPLY LOCAL UPDATE (Optimistic)
+          // We need to find the item in the store again because `itemToDelete` might be stale or we want to be safe
+          const currentItemRef = items.value.find(i => i.id === targetId)
+          if (currentItemRef) {
+              Object.assign(currentItemRef, updateData)
+          }
+
+          // 4. PERFORM REMOTE UPDATE
+          if (imageCleanupTask) await imageCleanupTask();
+          await updateDoc(doc(db.value, "fridge_items", targetId), updateData)
+
+      } catch (e) {
+          console.error("Optimistic Update Failed", e)
+          // 5. ROLLBACK ON FAILURE
+          const currentItemRef = items.value.find(i => i.id === targetId)
+          if (currentItemRef) {
+              Object.assign(currentItemRef, originalState)
+          }
+          alert("同步失敗，已還原資料")
+      } finally {
+          store.endSync()
+      }
   }
 
-  try {
-    let batches = itemToDelete.value.batches ? [...itemToDelete.value.batches] : [{
-      storedDate: itemToDelete.value.storedDate,
-      expiryDate: itemToDelete.value.expiryDate,
-      noExpiry: itemToDelete.value.noExpiry,
-      quantity: currentQty,
-      image: itemToDelete.value.image
-    }]
-
-    batches.sort((a, b) => {
-      const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31")
-      const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31")
-      if (dateA < dateB) return -1
-      if (dateA > dateB) return 1
-      const storeA = a.storedDate || "9999-12-31"
-      const storeB = b.storedDate || "9999-12-31"
-      if (storeA < storeB) return -1
-      if (storeA > storeB) return 1
-      return 0
-    })
-
-    let remainingToTake = takeQty
-    const newBatches = []
-
-    for (let batch of batches) {
-      if (remainingToTake <= 0) {
-        newBatches.push(batch)
-        continue
-      }
-
-      let batchQty = parseInt(batch.quantity)
-      
-      if (batchQty > remainingToTake) {
-        batch.quantity = batchQty - remainingToTake
-        remainingToTake = 0
-        newBatches.push(batch)
-      } else {
-        remainingToTake -= batchQty
-      }
-    }
-
-    const result = recalculateItemFromBatches(newBatches, itemToDelete.value.owners)
-    
-    // --- Image Cleanup Logic ---
-    // 1. Identify images in the OLD (original) batches
-    const oldImages = new Set();
-    itemToDelete.value.batches.forEach(b => {
-        if (b.image) oldImages.add(b.image);
-    });
-
-    // 2. Identify images in the NEW (remaining) batches + Result Main Image
-    const keepingImages = new Set();
-    if (result.image) keepingImages.add(result.image);
-    newBatches.forEach(b => {
-        if (b.image) keepingImages.add(b.image);
-    });
-
-    // 3. Delete unused
-    await cleanupUnusedImages(oldImages, keepingImages);
-    // ---------------------------
-
-    await updateDoc(doc(db.value, "fridge_items", itemToDelete.value.id), { ...result })
-    
-    goHome()
-  } catch(e) {
-    console.error(e)
-    alert("更新失敗")
-  }
+  // Execute background task
+  performUpdate()
 }
 
 // 刪除

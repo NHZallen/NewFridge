@@ -9,10 +9,16 @@
         <div class="d-flex flex-column">
           <h4 class="fw-bold m-0">
             <i class="bi bi-snow2 text-primary" v-if="filterZone !== 'nostock'"></i>
-            <i class="bi bi-archive text-secondary" v-else></i>
+          <i class="bi bi-archive text-secondary" v-else></i>
             {{ getZoneName(filterZone) }}
+            <span v-if="isSyncing" class="ms-2 text-primary spinner-border spinner-border-sm" role="status" aria-hidden="true" style="animation-duration: 0.5s;"></span>
           </h4>
-          <small class="text-muted" style="font-size: 0.8rem;">{{ familySettings.familyName }}</small>
+          <small class="text-muted" style="font-size: 0.8rem;">
+            {{ familySettings.familyName }}
+            <span v-if="isSyncing" class="ms-1 text-primary fade-in-out">
+               <i class="bi bi-cloud-arrow-up-fill"></i> 同步中...
+            </span>
+          </small>
         </div>
       </div>
       
@@ -51,7 +57,7 @@
     <div class="row g-3 pb-5">
       <div 
         class="col-6 col-md-4 col-lg-3" 
-        v-for="item in filteredItems" 
+        v-for="item in visibleItems" 
         :key="item.id"
         v-memo="[item.name, item.quantity, item.image, item.shoppingStatus, item.zone, item.storedDate, item.expiryDate, item.owners, isSelectionMode, selectedHomeIds.includes(item.id)]"
       >
@@ -128,6 +134,13 @@
             </div>
         </div>
       </div>
+        </div>
+      </div>
+      
+      <!-- Infinite Scroll Sentinel -->
+      <div v-if="visibleCount < filteredItems.length" ref="scrollSentinel" class="col-12 text-center py-4">
+        <div class="spinner-border text-muted spinner-border-sm" role="status"></div>
+      </div>
     </div>
 
     <div v-if="filteredItems.length === 0" class="text-center text-muted mt-5 pt-5">
@@ -144,6 +157,12 @@
     <button v-if="!isSelectionMode && filterZone !== 'nostock'" class="fab-btn" @click="$emit('add-page')">
       <i class="bi bi-plus-lg"></i>
     </button>
+
+    <!-- Sync Indicator Floating (Optional, if header one is not enough) -->
+    <div v-if="isSyncing" class="position-fixed bottom-0 end-0 mb-5 me-3 p-2 bg-white rounded-pill shadow-sm border d-flex align-items-center" style="z-index: 1060; transform: translateY(-70px);">
+        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+        <small class="fw-bold text-primary">雲端同步中...</small>
+    </div>
     
     <!-- 多選模式的底部操作列 -->
     <div v-if="isSelectionMode" class="fixed-bottom p-3 bg-white border-top shadow-lg">
@@ -173,7 +192,14 @@
 <script setup>
 import { getDays } from '../utils/dateUtils.js'
 import { isNoExpiry, getZoneName, getZoneColor, getAlertClass } from '../utils/itemHelpers.js'
+
 import { LONG_PRESS_DURATION } from '../utils/constants.js'
+import { useMainStore } from '../stores/index.js'
+import { storeToRefs } from 'pinia'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+
+const store = useMainStore()
+const { isSyncing } = storeToRefs(store)
 
 const props = defineProps({
   filteredItems: { type: Array, required: true },
@@ -235,6 +261,55 @@ const handleCardClick = (item) => {
     emit('update:selectedHomeIds', list)
   }
 }
+
+// === Infinite Scroll Logic ===
+const visibleCount = ref(20)
+const scrollSentinel = ref(null)
+let observer = null
+
+const visibleItems = computed(() => {
+  return props.filteredItems.slice(0, visibleCount.value)
+})
+
+// Reset visible count when filter changes
+watch(() => props.filteredItems, () => {
+    // If we filtered down to fewer items than visible, that's fine.
+    // Generally we might want to reset to 20 to save DOM if the list changed completely.
+    // visibleCount.value = 20
+    // Actually, preserving scroll pos usually means preserving rendered count unless strict reset needed.
+    // Let's reset if the change is drastic (implied by watcher) to avoid "blank" areas if implementation was Virtual.
+    // For Infinite Scroll, resetting is safer for search/filter results.
+    if (props.searchText || props.filterZone) {
+      visibleCount.value = 20
+    }
+}, { deep: true })
+
+onMounted(() => {
+  const options = {
+    root: null,
+    rootMargin: '200px', // Load more before reaching actual bottom
+    threshold: 0.1
+  }
+
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        if (visibleCount.value < props.filteredItems.length) {
+          visibleCount.value += 20 // Load next batch
+        }
+      }
+    })
+  }, options)
+
+  // Watch sentinel ref
+  watch(scrollSentinel, (el) => {
+    if (el) observer.observe(el)
+  }, { immediate: true })
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+})
 </script>
 
 <style scoped>

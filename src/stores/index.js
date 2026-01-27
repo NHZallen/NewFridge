@@ -11,7 +11,9 @@ export const useMainStore = defineStore('main', () => {
         members: []
     })
     const currentUser = ref(null)
+
     const isLoading = ref(false)
+    const activeSyncs = ref(0)
 
     // UI Filters
     const searchText = ref("")
@@ -32,6 +34,14 @@ export const useMainStore = defineStore('main', () => {
 
     const setLoading = (loading) => {
         isLoading.value = loading
+    }
+
+    const startSync = () => {
+        activeSyncs.value++
+    }
+
+    const endSync = () => {
+        if (activeSyncs.value > 0) activeSyncs.value--
     }
 
     // === Getters (Computed) ===
@@ -136,6 +146,13 @@ export const useMainStore = defineStore('main', () => {
         filteredItems,
         zoneStats,
         toBuyList,
-        cartList
+
+        cartList,
+
+        activeSyncs,
+        startSync,
+        endSync,
+        isSyncing: computed(() => activeSyncs.value > 0)
     }
+}
 })

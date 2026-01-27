@@ -338,7 +338,36 @@ onMounted(async () => {
              isConfigured.value = false
         }
     }
+
+    // Start background prefetch after initial load
+    prefetchComponents()
 })
+
+const prefetchComponents = () => {
+  const components = [
+    () => import('./components/SetupScreen.vue'),
+    () => import('./components/ItemForm.vue'),
+    () => import('./components/TakeOutPage.vue'),
+    () => import('./components/UpdateInfoPage.vue'),
+    () => import('./components/ToBuyListPage.vue'),
+    () => import('./components/ShoppingCartPage.vue'),
+    () => import('./components/SettingsPage.vue')
+  ]
+
+  const startPrefetch = () => {
+    // console.log("Starting background prefetch...")
+    components.forEach((importFn) => {
+      importFn().catch(() => {})
+    })
+  }
+
+  // Use requestIdleCallback if available, otherwise fallback to setTimeout
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(startPrefetch, { timeout: 5000 })
+  } else {
+    setTimeout(startPrefetch, 3000)
+  }
+}
 
 // 保存初始設定 (SetupScreen)
 const saveInitialConfig = async () => {

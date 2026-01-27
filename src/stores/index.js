@@ -154,5 +154,4 @@ export const useMainStore = defineStore('main', () => {
         endSync,
         isSyncing: computed(() => activeSyncs.value > 0)
     }
-}
 })

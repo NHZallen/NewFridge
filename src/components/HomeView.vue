@@ -134,7 +134,6 @@
             </div>
         </div>
       </div>
-    </div>
       
       <!-- Infinite Scroll Sentinel -->
       <div v-if="visibleCount < filteredItems.length" ref="scrollSentinel" class="col-12 text-center py-4">

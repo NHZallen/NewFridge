@@ -1,6 +1,16 @@
-export const LATEST_VERSION = "1.12.0";
+export const LATEST_VERSION = "1.13.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.13.0",
+    date: "2026-01-27",
+    title: "極速操作體驗與視覺升級",
+    changes: [
+      "樂觀 UI (Optimistic UI) 升級：取出物品、刪除與加入待買改為「零延遲」操作，無需等待網路回應，體驗如原生 App 般順暢",
+      "無限滾動 (Infinite Scroll)：首頁改為動態載入，大幅降低記憶體佔用，滑動更平滑，解決長列表卡頓問題",
+      "全域同步指示器：畫面頂部與右下角新增同步狀態動畫，即時掌握雲端資料處理進度"
+    ]
+  },
   {
     version: "1.12.0",
     date: "2026-01-27",

@@ -1,6 +1,14 @@
-export const LATEST_VERSION = "1.14.0";
+export const LATEST_VERSION = "1.15.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.15.0",
+    date: "2026-01-28",
+    title: "安全更新：移除 API 金鑰",
+    changes: [
+      "安全性修正：從原始碼中移除嵌入的 Firebase API 金鑰，提升專案安全性並符合開源規範。使用者現在需要透過初始設定畫面手動輸入自己的 Firebase 配置資訊。"
+    ]
+  },
   {
     version: "1.14.0",
     date: "2026-01-27",

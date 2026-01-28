@@ -63,13 +63,79 @@ npm install
 npm run dev
 ```
 
-### 首次配置說明
+### 🔥 Firebase 詳細建置教學 (必讀)
 
-首次開啟應用後，系統會引導您進行 Firebase 設定：
-1. 前往 [Firebase Console](https://console.firebase.google.com/) 建立專案。
-2. 啟動 **Firestore Database** 並設置安全性規則。
-2. 啟動 **Firestore Database** 並設置安全性規則。
-3. 複製 Web 設定碼 (firebaseConfig)，直接貼入應用程式的初始畫面中即可自動連接。(本專案開源發布，故移除內建測試金鑰，請務必使用您自己的設定)
+本專案深度依賴 Firebase 服務，請務必按照以下步驟完整建置，確保功能正常運作。
+
+#### 1. 建立專案 (Create Project)
+1.  前往 [Firebase Console](https://console.firebase.google.com/)。
+2.  點擊「新增專案」，輸入專案名稱 (例如 `Fridge-Manager`)。
+3.  **Google Analytics**: 可選擇關閉 (測試用不需開啟)，點擊「建立專案」。
+
+#### 2. 啟用 Blaze 付費方案 (⚠️ 重要)
+**本系統部分功能可能達到免費額度上限或使用特定擴充，強烈建議啟用 Blaze 方案以避免服務中斷。**
+1.  在左下角點擊「升級 (Upgrade)」。
+2.  選擇 **Blaze (隨用隨付)** 方案。
+3.  設定預算快訊 (例如 $1 USD) 以避免意外支出。
+
+#### 3. 註冊應用程式 (Register App)
+1.  在專案總覽頁面，點擊 **Web** 圖示 (`</>`)。
+2.  輸入應用程式暱稱 (例如 `Web App`)。
+3.  不需要勾選 Firebase Hosting。
+4.  點擊「註冊應用程式」。
+5.  複製 `firebaseConfig` 物件中的內容 (稍後啟動 App 時會用到)。
+
+#### 4. 設定驗證 (Authentication)
+1.  左側選單進入 **Build > Authentication**。
+2.  點擊「開始使用」。
+3.  **登入方式 (Sign-in method)**:
+    *   **Google**: 啟用，並設定專案支援電子郵件。
+    *   **電子郵件/密碼**: (如果您需要) 啟用。
+4.  前往 **Settings > 網域 (Authorized domains)**，確保您的網域 (如 `localhost`, `vercel.app`) 已在清單中。
+
+#### 5. 建立 Firestore 資料庫 (Firestore Database)
+1.  左側選單進入 **Build > Firestore Database**。
+2.  點擊「建立資料庫」。
+3.  **位置**: 建議選擇 **`asia-east1`** (台灣) 或鄰近節點以降低延遲。
+4.  **安全規則**: 選擇 **「以生產模式啟動 (Start in production mode)」**。
+5.  設定完成後，前往 **規則 (Rules)** 分頁，將規則修改為以下**安全設定** (僅允許登入用戶存取)：
+    ```javascript
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /{document=**} {
+          allow read, write: if request.auth != null;
+        }
+      }
+    }
+    ```
+6.  點擊「發布」。
+
+#### 6. 建立 Storage 儲存槽 (Storage)
+1.  左側選單進入 **Build > Storage**。
+2.  點擊「開始使用」。
+3.  **安全規則**: 選擇 **「以生產模式啟動 (Start in production mode)」**。
+4.  **位置**: 跟隨預設或設定為 `asia-east1`。
+5.  設定完成後，前往 **規則 (Rules)** 分頁，修改為：
+    ```javascript
+    rules_version = '2';
+    service firebase.storage {
+      match /b/{bucket}/o {
+        match /{allPaths=**} {
+          allow read, write: if request.auth != null;
+        }
+      }
+    }
+    ```
+6.  點擊「發布」。
+
+---
+
+### 🔑 啟動與連線
+完成上述步驟後，回到本專案網頁：
+1.  啟動網頁 (`npm run dev` 或部署後網址)。
+2.  在初始設定畫面貼上 **步驟 3** 取得的 `firebaseConfig`。
+3.  點擊連線，系統即可正常運作！
 
 ---
 

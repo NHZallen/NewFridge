@@ -1,6 +1,6 @@
 # ❄️ 智慧冰箱管理系統 (Fridge App)
 
-![Version](https://img.shields.io/badge/version-1.9.3-blue.svg)
+![Version](https://img.shields.io/badge/version-1.14.0-blue.svg)
 ![Vue](https://img.shields.io/badge/Vue-3.4-4fc08d.svg)
 ![Vite](https://img.shields.io/badge/Vite-5.0-646cff.svg)
 ![Firebase](https://img.shields.io/badge/Firebase-10.7-ffca28.svg)
@@ -32,6 +32,8 @@
 *   **極速渲染**: 運用 `v-memo` 與 `contain: content` 最佳化長列表滾動，即便有上百件品項依然絲滑順暢。
 *   **PWA 支援**: 支援離線快取，可像原生 App 一樣安裝至手機桌面，秒開體驗。
 *   **Firebase 即時同步**: 採用 Firestore 監聽機制，多人並行操作時數據秒速更新。
+*   **🔐 雲端身分同步**: 與 Google 帳號深度整合，自動同步您的身分與偏好設定，換機免重設。
+*   **⚡ 快速登入**: 支援一鍵 Google 登入 (需自行配置 API Key)，智慧辨識老用戶。
 
 ---
 
@@ -67,7 +69,8 @@ npm run dev
 首次開啟應用後，系統會引導您進行 Firebase 設定：
 1. 前往 [Firebase Console](https://console.firebase.google.com/) 建立專案。
 2. 啟動 **Firestore Database** 並設置安全性規則。
-3. 複製 Web 設定碼 (firebaseConfig)，直接貼入應用程式的初始畫面中即可自動連接。
+2. 啟動 **Firestore Database** 並設置安全性規則。
+3. 複製 Web 設定碼 (firebaseConfig)，直接貼入應用程式的初始畫面中即可自動連接。(本專案開源發布，故移除內建測試金鑰，請務必使用您自己的設定)
 
 ---
 
@@ -85,6 +88,7 @@ npm run dev
 
 ## 📅 更新日誌 (精華摘要)
 
+*   **v1.14.0**: 安全性更新與功能躍進。實作 Google 快速登入與雲端身分同步，並移除公開原始碼中的 API 金鑰以符合開源規範。
 *   **v1.9.3**: 大規模組件化重構，導入 `v-memo` 優化長列表效能，修復側邊欄 Backdrop 噴發異常。
 *   **v1.9.0**: 引進 Bento 設計語彙，實作導航列與側邊欄手動控制邏輯，提升操作穩定性。
 *   **v1.8.0**: 引入動作懸浮島 (Action Island)，強化購物車管理體驗。
@@ -99,4 +103,4 @@ npm run dev
 ---
 
 > 💻 開發者：**NHZallen**   
-> 📅 最後更新日期：2026-01-24
+> 📅 最後更新日期：2026-01-28

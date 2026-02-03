@@ -137,6 +137,49 @@
       </div>
     </div>
 
+    <!-- 更新歷史 -->
+    <div class="card section-card mb-3">
+      <div class="card-body">
+        <div class="fw-bold mb-2"><i class="bi bi-list-check text-primary me-1"></i> 版本更新資訊</div>
+        
+        <div class="accordion" id="updateAccordion">
+          <div class="accordion-item" v-for="log in visibleUpdateLogs" :key="log.version">
+            <h2 class="accordion-header">
+              <button class="accordion-button" 
+                      :class="{ collapsed: expandedVersion !== log.version }" 
+                      type="button" 
+                      @click="expandedVersion = expandedVersion === log.version ? null : log.version">
+                <div class="d-flex flex-column">
+                  <div class="fw-bold">v{{ log.version }}　{{ log.title }}</div>
+                  <div class="small text-muted">{{ log.date }}</div>
+                </div>
+              </button>
+            </h2>
+            <div class="accordion-collapse" :class="{ show: expandedVersion === log.version, collapse: expandedVersion !== log.version }">
+              <div class="accordion-body">
+                <ul class="mb-0">
+                  <li v-for="c in log.changes" :key="c">{{ c }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!showAllUpdates && updateLogs.length > 3" class="text-center mt-2">
+          <button class="btn btn-link text-decoration-none text-muted" @click="showAllUpdates = true">
+            <i class="bi bi-chevron-down me-1"></i>顯示更多歷史紀錄 ({{ updateLogs.length - 3 }})
+          </button>
+        </div>
+        
+        <div v-if="showAllUpdates && updateLogs.length > 3" class="text-center mt-2">
+          <button class="btn btn-link text-decoration-none text-muted" @click="showAllUpdates = false">
+            <i class="bi bi-chevron-up me-1"></i>收起歷史紀錄
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- 裝置同步與分享 -->
     <div class="card section-card mb-3">
       <div class="card-body">
@@ -204,49 +247,6 @@
         <button class="btn btn-secondary rounded-pill w-100 mt-4" @click="closeSyncModal">
           {{ syncStatus === 'done' ? '關閉' : '取消' }}
         </button>
-
-      </div>
-    </div>
-
-    <!-- 更新歷史 -->
-    <div class="card section-card mb-3">
-      <div class="card-body">
-        <div class="fw-bold mb-2"><i class="bi bi-list-check text-primary me-1"></i> 版本更新資訊</div>
-        
-        <div class="accordion" id="updateAccordion">
-          <div class="accordion-item" v-for="log in visibleUpdateLogs" :key="log.version">
-            <h2 class="accordion-header">
-              <button class="accordion-button" 
-                      :class="{ collapsed: expandedVersion !== log.version }" 
-                      type="button" 
-                      @click="expandedVersion = expandedVersion === log.version ? null : log.version">
-                <div class="d-flex flex-column">
-                  <div class="fw-bold">v{{ log.version }}　{{ log.title }}</div>
-                  <div class="small text-muted">{{ log.date }}</div>
-                </div>
-              </button>
-            </h2>
-            <div class="accordion-collapse" :class="{ show: expandedVersion === log.version, collapse: expandedVersion !== log.version }">
-              <div class="accordion-body">
-                <ul class="mb-0">
-                  <li v-for="c in log.changes" :key="c">{{ c }}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="!showAllUpdates && updateLogs.length > 3" class="text-center mt-2">
-          <button class="btn btn-link text-decoration-none text-muted" @click="showAllUpdates = true">
-            <i class="bi bi-chevron-down me-1"></i>顯示更多歷史紀錄 ({{ updateLogs.length - 3 }})
-          </button>
-        </div>
-        
-        <div v-if="showAllUpdates && updateLogs.length > 3" class="text-center mt-2">
-          <button class="btn btn-link text-decoration-none text-muted" @click="showAllUpdates = false">
-            <i class="bi bi-chevron-up me-1"></i>收起歷史紀錄
-          </button>
-        </div>
 
       </div>
     </div>

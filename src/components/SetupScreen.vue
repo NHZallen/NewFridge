@@ -103,7 +103,6 @@ const openSyncModal = () => {
 }
 
 const closeSyncModal = () => {
-  if (isSyncing.value) return
   showSyncModal.value = false
 }
 
@@ -124,12 +123,18 @@ const startSync = async () => {
         
         if (data.mode === 'full') {
              emit('update:inputUserName', data.userName || '')
+             // Close modal first
+             showSyncModal.value = false
+             isSyncing.value = false
+             // Auto-submit to enter app directly
+             setTimeout(() => emit('submit'), 100)
+             return
         } else {
              // Share mode: Name is empty, user needs to input
              emit('update:inputUserName', '')
         }
         
-        closeSyncModal()
+        showSyncModal.value = false
         
     } catch (e) {
         console.error(e)

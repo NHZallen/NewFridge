@@ -1,6 +1,15 @@
-export const LATEST_VERSION = "1.14.0";
+export const LATEST_VERSION = "1.14.1";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.1",
+    date: "2026-02-03",
+    title: "操作回饋與流暢度優化",
+    changes: [
+      "互動優化：放入與取出物品的按鈕新增「處理中」與「成功打勾」動畫，狀態回饋更明確",
+      "體驗升級：優化列表捲動記憶，從編輯頁返回時精準保留瀏覽位置，不再迷失方向"
+    ]
+  },
   {
     version: "1.14.0",
     date: "2026-01-28",

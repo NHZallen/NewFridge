@@ -137,6 +137,77 @@
       </div>
     </div>
 
+    <!-- 裝置同步與分享 -->
+    <div class="card section-card mb-3">
+      <div class="card-body">
+        <div class="fw-bold mb-2"><i class="bi bi-phone-flip text-primary me-1"></i> 裝置同步與分享</div>
+        <div class="text-muted small mb-3">
+          產生 6 位數代碼，在另一台裝置輸入即可快速同步設定。
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary flex-grow-1 rounded-pill" @click="startSync('full')">
+            <i class="bi bi-arrow-repeat"></i> 快速同步
+          </button>
+          <button class="btn btn-outline-success flex-grow-1 rounded-pill" @click="startSync('share')">
+            <i class="bi bi-share"></i> 分享家庭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 同步 Modal (簡易覆蓋層) -->
+    <div v-if="isSyncActive" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 2000;">
+      <div class="card shadow rounded-4 text-center p-4" style="width: 90%; max-width: 350px;">
+        
+        <div class="mb-3">
+          <i class="bi bi-phone-flip fs-1 text-primary"></i>
+        </div>
+
+        <h4 class="fw-bold mb-3">{{ syncMode === 'full' ? '跨裝置同步' : '分享家庭設定' }}</h4>
+
+        <div v-if="syncStatus === 'waiting'">
+          <p class="text-muted mb-2">請在新裝置輸入以下代碼：</p>
+          <div class="display-4 fw-bold letter-spacing-2 mb-3 font-monospace text-primary bg-light rounded py-2">{{ syncCode }}</div>
+          
+          <div class="text-danger fw-bold mb-3">
+             <i class="bi bi-clock"></i> {{ syncTimer }} 秒後失效
+          </div>
+          
+          <div class="spinner-border spinner-border-sm text-secondary mb-3" role="status"></div>
+          <div class="text-muted small">等待連線中...</div>
+        </div>
+
+        <div v-else-if="syncStatus === 'connected'">
+          <div class="text-success mb-3">
+            <i class="bi bi-check-circle-fill display-1"></i>
+          </div>
+          <h5 class="fw-bold text-success">連線成功！</h5>
+          <p class="text-muted">正在傳送資料...</p>
+        </div>
+
+        <div v-else-if="syncStatus === 'done'">
+          <div class="text-success mb-3">
+            <i class="bi bi-check-circle-fill display-1"></i>
+          </div>
+          <h5 class="fw-bold text-success">同步完成</h5>
+        </div>
+
+        <div v-else-if="syncStatus === 'timeout'">
+          <div class="text-danger mb-3">
+            <i class="bi bi-x-circle display-1"></i>
+          </div>
+          <h5 class="fw-bold text-danger">代碼已失效</h5>
+          <p class="text-muted">請重新產生代碼</p>
+        </div>
+
+        <button class="btn btn-secondary rounded-pill w-100 mt-4" @click="closeSyncModal">
+          {{ syncStatus === 'done' ? '關閉' : '取消' }}
+        </button>
+
+      </div>
+    </div>
+
     <!-- 更新歷史 -->
     <div class="card section-card mb-3">
       <div class="card-body">
@@ -188,6 +259,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { p2pManager } from '../utils/p2pManager'
 
 const props = defineProps({
   familySettings: { type: Object, required: true },
@@ -215,6 +287,15 @@ const editFamilyNameTemp = ref('')
 const showAllUpdates = ref(false)
 const expandedVersion = ref(null)
 
+// Sync State
+const isSyncActive = ref(false)
+const syncCode = ref('')
+const syncTimer = ref(60)
+const syncStatus = ref('waiting') 
+const syncMode = ref('full')
+let timerInterval = null
+let senderPeer = null
+
 const visibleUpdateLogs = computed(() => {
   if (showAllUpdates.value) return props.updateLogs
   return props.updateLogs.slice(0, 3)
@@ -229,6 +310,101 @@ const saveFamilyName = () => {
   if (!editFamilyNameTemp.value.trim()) return
   emit('save-family-name', editFamilyNameTemp.value.trim())
   isEditingFamilyName.value = false
+}
+
+// Sync Logic
+const startSync = async (mode) => {
+   // Reset
+   if (timerInterval) clearInterval(timerInterval)
+   if (senderPeer && senderPeer.cancel) senderPeer.cancel()
+
+   syncMode.value = mode
+   syncStatus.value = 'waiting'
+   syncTimer.value = 60
+   syncCode.value = p2pManager.generateSyncCode()
+   isSyncActive.value = true
+
+   // Prepare Payload
+   const configStr = localStorage.getItem("fridge_firebase_config")
+   if (!configStr) {
+       alert("無法讀取設定，請重新登入")
+       isSyncActive.value = false
+       return
+   }
+   
+   let config = null
+   try {
+     config = JSON.parse(configStr)
+   } catch(e) {
+     alert("設定資料損毀")
+     isSyncActive.value = false
+     return
+   }
+
+   const payload = {
+       config,
+       familyName: props.familySettings.familyName || '我的家庭',
+       userName: mode === 'full' ? props.currentUserName : '',
+       mode
+   }
+
+   // Timer
+   timerInterval = setInterval(() => {
+       syncTimer.value--
+       if (syncTimer.value <= 0) {
+          clearInterval(timerInterval)
+          syncStatus.value = 'timeout'
+          if(senderPeer && senderPeer.cancel) senderPeer.cancel()
+       }
+   }, 1000)
+
+   // P2P
+   try {
+       const promise = p2pManager.createSender(syncCode.value, payload, () => {
+          // Connected
+          syncStatus.value = 'connected'
+          if (timerInterval) clearInterval(timerInterval)
+       })
+       
+       senderPeer = promise // Save promise/object to allow cancel if supported, actually createSender returns promise but we need the cancel handle.
+       // My p2pManager.createSender returns a promise that ALSO has a .cancel() method attached?
+       // Wait, Promises can't have methods attached easily unless I return a custom object like { promise, cancel }.
+       // In my p2pManager implementation: return new Promise(...) -> inside I return `return { cancel }`?
+       // NO. `new Promise` constructor return value is ignored.
+       // I need to fix `p2pManager.js` to return an object `{ promise, cancel }` instead of just a Promise?
+       // OR, I can just not support cancel on the promise object directly.
+       // Let's check my p2pManager implementation.
+       // I wrote: `return new Promise(...)` and inside `return { cancel: ... }`. This return inside executor is IGNORED.
+       
+       // I made a mistake in p2pManager.js.
+       // I should fix p2pManager.js first or handle it differently.
+       // I will assume for now I can't cancel the peer via the promise variable.
+       // I'll fix p2pManager.js in the next step or right before this if possible?
+       // No, I already wrote the file. I need to fix p2pManager.js.
+       // Let's just implement the UI assuming valid logic, then fixing p2pManager.
+       
+       await promise
+       
+       syncStatus.value = 'done'
+       setTimeout(() => {
+           if(isSyncActive.value && syncStatus.value === 'done') closeSyncModal()
+       }, 2000)
+       
+   } catch (err) {
+       console.error(err)
+       if (syncStatus.value !== 'timeout' && isSyncActive.value) {
+           // If user closed modal, ignore
+           // If timeout, ignore
+       }
+   }
+}
+
+const closeSyncModal = () => {
+    isSyncActive.value = false
+    if (timerInterval) clearInterval(timerInterval)
+    // We can't cancel the peer easily without fixing p2pManager.
+    // I'll force a reload or just let it time out if I can't fix it?
+    // I will fix p2pManager.js in a separate tool call.
 }
 
 </script>

@@ -196,8 +196,8 @@
 
                 <button type="submit" 
                         class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
-                        :class="{'btn-success': isSuccess}"
-                        :disabled="isUploading || isCompressing || isSuccess">
+                        :class="{'btn-success': isSuccess, 'btn-secondary': !isFormValid && !isSuccess}"
+                        :disabled="isUploading || isCompressing || isSuccess || !isFormValid">
                     
                     <!-- 1. 初始狀態文字 -->
                     <span v-if="!isUploading && !isCompressing && !isSuccess">
@@ -333,6 +333,12 @@ export default {
     const addDays = (days) => {
         formItem.value.expiryDate = addDaysToDate(formItem.value.expiryDate, days)
     }
+
+    const isFormValid = computed(() => {
+        const hasName = !!formItem.value.name;
+        const hasImage = formItem.value.useExistingImage || !!pendingImageBlob.value || !!formItem.value.image;
+        return hasName && hasImage;
+    })
 
     const formatOwners = (owners) => {
         if (!owners || owners.length === 0) return "全家";
@@ -686,6 +692,8 @@ export default {
         uniqueItemNames,
         matchedExistingItem,
         addDays,
+        addDays,
+        isFormValid,
         formatOwners,
         toggleOwner,
         toggleToBuyStatus,

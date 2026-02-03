@@ -1,6 +1,14 @@
-export const LATEST_VERSION = "1.14.1";
+export const LATEST_VERSION = "1.14.2";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.2",
+    date: "2026-02-03",
+    title: "輸入防呆機制",
+    changes: [
+      "防呆鎖定：新增物品表單防呆機制，未輸入名稱或照片時確認按鈕顯示為灰色且無法點擊，避免建立無效資料"
+    ]
+  },
   {
     version: "1.14.1",
     date: "2026-02-03",

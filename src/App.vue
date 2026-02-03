@@ -75,7 +75,9 @@
         :maxTakeOut="maxTakeOut"
         v-model:takeOutAmount="takeOutAmount"
         @cancel="goHome"
-        @confirm="confirmTakeOutAction"
+        v-model:takeOutAmount="takeOutAmount"
+        @cancel="goHome"
+        @submit-success="goHome"
       />
 
       <!-- SETTINGS PAGE -->
@@ -613,148 +615,7 @@ const goToTakeOutPage = (item) => {
   nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
 }
 
-// 取出物品 (Optimistic UI)
-const confirmTakeOutAction = async () => {
-  if (!db.value || !itemToDelete.value) return
 
-  const takeQty = parseInt(takeOutAmount.value)
-  const currentQty = parseInt(itemToDelete.value.quantity)
-  
-  // 1. Snapshot original state for rollback
-  const originalState = JSON.parse(JSON.stringify(itemToDelete.value))
-  const targetId = itemToDelete.value.id
-
-  // Store Sync State
-  store.startSync()
-  
-  // Go home immediately (Optimistic)
-  goHome()
-
-  // 2. Calculate New State & Prepare Async Tasks
-  // We use a promise wrapper to handle async logic in background
-  const performUpdate = async () => {
-      try {
-          let updateData = {}
-          let imageCleanupTask = null
-
-          if (takeQty >= currentQty) {
-            // === CASE 1: FULL TAKE OUT (DELETE) ===
-            
-            // --- Image Cleanup Plan ---
-            const allImages = new Set();
-            if (originalState.image) allImages.add(originalState.image);
-            if (originalState.batches) {
-                originalState.batches.forEach(b => {
-                    if (b.image) allImages.add(b.image);
-                });
-            }
-
-            let imageToKeep = originalState.image;
-            // Find LATEST image
-            if (originalState.batches && originalState.batches.length > 0) {
-                const sortedBatches = [...originalState.batches].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
-                const latestBatch = sortedBatches.find(b => b.image);
-                if (latestBatch) imageToKeep = latestBatch.image;
-            }
-            
-            const keepingImages = imageToKeep ? [imageToKeep] : [];
-            imageCleanupTask = () => cleanupUnusedImages(allImages, keepingImages);
-
-            updateData = {
-                quantity: 0,
-                batches: [],
-                storedDate: "",
-                expiryDate: "",
-                noExpiry: true,
-                image: imageToKeep || null,
-                updatedAt: new Date()
-            }
-
-          } else {
-             // === CASE 2: PARTIAL TAKE OUT ===
-             let batches = originalState.batches ? [...originalState.batches] : [{
-                  storedDate: originalState.storedDate,
-                  expiryDate: originalState.expiryDate,
-                  noExpiry: originalState.noExpiry,
-                  quantity: currentQty,
-                  image: originalState.image
-             }]
-
-             // Sort logic
-             batches.sort((a, b) => {
-                const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31")
-                const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31")
-                if (dateA < dateB) return -1
-                if (dateA > dateB) return 1
-                const storeA = a.storedDate || "9999-12-31"
-                const storeB = b.storedDate || "9999-12-31"
-                if (storeA < storeB) return -1
-                if (storeA > storeB) return 1
-                return 0
-             })
-
-             let remainingToTake = takeQty
-             const newBatches = []
-             
-             for (let batch of batches) {
-                  if (remainingToTake <= 0) {
-                    newBatches.push(batch)
-                    continue
-                  }
-                  let batchQty = parseInt(batch.quantity)
-                  if (batchQty > remainingToTake) {
-                    // Clone batch to avoid reference issues
-                    const newBatch = { ...batch } 
-                    newBatch.quantity = batchQty - remainingToTake
-                    remainingToTake = 0
-                    newBatches.push(newBatch)
-                  } else {
-                    remainingToTake -= batchQty
-                  }
-             }
-             
-             const result = recalculateItemFromBatches(newBatches, originalState.owners)
-             updateData = { ...result }
-
-             // --- Image Cleanup Plan ---
-             const oldImages = new Set();
-             if (originalState.batches) {
-                 originalState.batches.forEach(b => { if (b.image) oldImages.add(b.image); });
-             }
-             const keepingImages = new Set();
-             if (result.image) keepingImages.add(result.image);
-             newBatches.forEach(b => { if (b.image) keepingImages.add(b.image); });
-             
-             imageCleanupTask = () => cleanupUnusedImages(oldImages, keepingImages);
-          }
-
-          // 3. APPLY LOCAL UPDATE (Optimistic)
-          // We need to find the item in the store again because `itemToDelete` might be stale or we want to be safe
-          const currentItemRef = items.value.find(i => i.id === targetId)
-          if (currentItemRef) {
-              Object.assign(currentItemRef, updateData)
-          }
-
-          // 4. PERFORM REMOTE UPDATE
-          if (imageCleanupTask) await imageCleanupTask();
-          await updateDoc(doc(db.value, "fridge_items", targetId), updateData)
-
-      } catch (e) {
-          console.error("Optimistic Update Failed", e)
-          // 5. ROLLBACK ON FAILURE
-          const currentItemRef = items.value.find(i => i.id === targetId)
-          if (currentItemRef) {
-              Object.assign(currentItemRef, originalState)
-          }
-          alert("同步失敗，已還原資料")
-      } finally {
-          store.endSync()
-      }
-  }
-
-  // Execute background task
-  performUpdate()
-}
 
 // 刪除 (Optimistic UI)
 const deleteItemPermanently = async (id) => {

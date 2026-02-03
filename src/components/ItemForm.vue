@@ -194,8 +194,30 @@
                     <div class="form-text">您可以選擇「全家」或是指定多位成員</div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm" :disabled="isUploading || isCompressing">
-                    {{ (isUploading || isCompressing) ? '處理中...' : (mode==='edit' ? '儲存變更' : '確認放入冰箱') }}
+                <button type="submit" 
+                        class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
+                        :class="{'btn-success': isSuccess}"
+                        :disabled="isUploading || isCompressing || isSuccess">
+                    
+                    <!-- 1. 初始狀態文字 -->
+                    <span v-if="!isUploading && !isCompressing && !isSuccess">
+                        {{ mode==='edit' ? '儲存變更' : '確認放入冰箱' }}
+                    </span>
+
+                    <!-- 2. 處理中 (Spinner) -->
+                    <span v-else-if="(isUploading || isCompressing) && !isSuccess" class="d-flex align-items-center">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        處理中...
+                    </span>
+
+                    <!-- 3. 成功打勾動畫 -->
+                    <span v-else-if="isSuccess" class="d-flex align-items-center justify-content-center">
+                        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                            <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                            <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                        </svg>
+                        <span class="ms-2">完成！</span>
+                    </span>
                 </button>
 
                 <!-- 0庫存物品的永久刪除按鈕 -->
@@ -234,6 +256,7 @@ export default {
     const formItem = ref({ ...props.initialItem })
     const isCompressing = ref(false)
     const isUploading = ref(false)
+    const isSuccess = ref(false)
     const showOwnerDropdown = ref(false)
     
     // Store the raw Blob for uploading later
@@ -629,6 +652,12 @@ export default {
                     emit('update-pending-id', null);
                 }
 
+                // Success State Transition
+                isSuccess.value = true;
+                
+                // Wait for animation
+                await new Promise(resolve => setTimeout(resolve, 1200));
+
                 emit('submit-success');
                 
             } catch (firestoreErr) {
@@ -653,6 +682,7 @@ export default {
         formItem,
         isCompressing,
         isUploading,
+        isSuccess,
         uniqueItemNames,
         matchedExistingItem,
         addDays,
@@ -671,3 +701,41 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Checkmark Animation */
+.checkmark {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 3;
+    stroke: #fff;
+    stroke-miterlimit: 10;
+    box-shadow: inset 0px 0px 0px #7ac142;
+    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+.checkmark__circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke: #fff; /* White circle outline if desired, or make transparent */
+    fill: none;
+    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+    transform-origin: 50% 50%;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+}
+
+@keyframes stroke {
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+</style>

@@ -14,6 +14,9 @@ export const useMainStore = defineStore('main', () => {
 
     const isLoading = ref(false)
     const activeSyncs = ref(0)
+    
+    // Infinite Scroll State
+    const homeVisibleCount = ref(20)
 
     // UI Filters
     const searchText = ref("")
@@ -42,6 +45,14 @@ export const useMainStore = defineStore('main', () => {
 
     const endSync = () => {
         if (activeSyncs.value > 0) activeSyncs.value--
+    }
+
+    const loadMoreItems = () => {
+        homeVisibleCount.value += 20
+    }
+
+    const resetVisibleCount = () => {
+        homeVisibleCount.value = 20
     }
 
     // === Getters (Computed) ===
@@ -152,6 +163,10 @@ export const useMainStore = defineStore('main', () => {
         activeSyncs,
         startSync,
         endSync,
-        isSyncing: computed(() => activeSyncs.value > 0)
+        isSyncing: computed(() => activeSyncs.value > 0),
+
+        homeVisibleCount,
+        loadMoreItems,
+        resetVisibleCount
     }
 })

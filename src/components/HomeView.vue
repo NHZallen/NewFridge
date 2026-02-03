@@ -136,7 +136,7 @@
       </div>
       
       <!-- Infinite Scroll Sentinel -->
-      <div v-if="visibleCount < filteredItems.length" ref="scrollSentinel" class="col-12 text-center py-4">
+      <div v-if="homeVisibleCount < filteredItems.length" ref="scrollSentinel" class="col-12 text-center py-4">
         <div class="spinner-border text-muted spinner-border-sm" role="status"></div>
       </div>
     </div>
@@ -197,7 +197,8 @@ import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 const store = useMainStore()
-const { isSyncing } = storeToRefs(store)
+const { isSyncing, homeVisibleCount } = storeToRefs(store)
+const { loadMoreItems, resetVisibleCount } = store
 
 const props = defineProps({
   filteredItems: { type: Array, required: true },
@@ -261,12 +262,12 @@ const handleCardClick = (item) => {
 }
 
 // === Infinite Scroll Logic ===
-const visibleCount = ref(20)
+// visibleCount moved to store to persist scroll position
 const scrollSentinel = ref(null)
 let observer = null
 
 const visibleItems = computed(() => {
-  return props.filteredItems.slice(0, visibleCount.value)
+  return props.filteredItems.slice(0, homeVisibleCount.value)
 })
 
 // Reset visible count when filter changes
@@ -277,8 +278,9 @@ watch(() => props.filteredItems, () => {
     // Actually, preserving scroll pos usually means preserving rendered count unless strict reset needed.
     // Let's reset if the change is drastic (implied by watcher) to avoid "blank" areas if implementation was Virtual.
     // For Infinite Scroll, resetting is safer for search/filter results.
+    // For Infinite Scroll, resetting is safer for search/filter results.
     if (props.searchText || props.filterZone) {
-      visibleCount.value = 20
+      resetVisibleCount()
     }
 }, { deep: true })
 
@@ -292,8 +294,8 @@ onMounted(() => {
   observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        if (visibleCount.value < props.filteredItems.length) {
-          visibleCount.value += 20 // Load next batch
+        if (homeVisibleCount.value < props.filteredItems.length) {
+          loadMoreItems() // Load next batch via store
         }
       }
     })

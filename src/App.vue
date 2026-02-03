@@ -75,8 +75,6 @@
         :maxTakeOut="maxTakeOut"
         v-model:takeOutAmount="takeOutAmount"
         @cancel="goHome"
-        v-model:takeOutAmount="takeOutAmount"
-        @cancel="goHome"
         @submit-success="goHome"
       />
 

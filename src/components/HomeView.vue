@@ -156,7 +156,6 @@
     <button v-if="!isSelectionMode && filterZone !== 'nostock'" 
             class="fab-btn" 
             :class="{ 'opacity-50': !isOnline }"
-            :disabled="!isOnline"
             @click="$emit('add-page')">
       <i class="bi bi-plus-lg"></i>
     </button>

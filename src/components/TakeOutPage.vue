@@ -32,7 +32,7 @@
         <button class="btn btn-danger w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
                 :class="{'btn-success': isSuccess}"
                 @click="confirmTakeOut"
-                :disabled="isProcessing || isSuccess || !isOnline">
+                :disabled="isProcessing || isSuccess">
           
           <!-- 1. 初始狀態 -->
           <span v-if="!isProcessing && !isSuccess">
@@ -87,7 +87,11 @@ const isProcessing = ref(false)
 const isSuccess = ref(false)
 
 const confirmTakeOut = async () => {
-  if (!db.value || !props.item) return
+  if (!isOnline.value) {
+    alert("目前處於離線狀態，無法執行取出操作。");
+    return;
+  }
+  if (!db.value || !props.item) return;
 
   isProcessing.value = true
   

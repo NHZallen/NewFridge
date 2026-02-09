@@ -203,6 +203,10 @@ export default {
     }
 
     const handleRemove = async () => {
+      if (!isOnline.value) {
+        alert("目前處於離線狀態，無法執行此操作。");
+        return;
+      }
       store.startSync()
       try {
         const promises = localSelectedIds.value.map(id => 
@@ -219,6 +223,10 @@ export default {
     }
 
     const handleMoveBack = async () => {
+      if (!isOnline.value) {
+        alert("目前處於離線狀態，無法執行此操作。");
+        return;
+      }
       store.startSync()
       try {
         const promises = localSelectedIds.value.map(id => 
@@ -243,7 +251,8 @@ export default {
       getZoneName,
       toggleSelection,
       handleRemove,
-      handleMoveBack
+      handleMoveBack,
+      isOnline
     }
   }
 }

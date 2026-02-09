@@ -360,30 +360,15 @@ const startSync = async (mode) => {
 
    // P2P
    try {
-       const promise = p2pManager.createSender(syncCode.value, payload, () => {
+       const result = p2pManager.createSender(syncCode.value, payload, () => {
           // Connected
           syncStatus.value = 'connected'
           if (timerInterval) clearInterval(timerInterval)
        })
        
-       senderPeer = promise // Save promise/object to allow cancel if supported, actually createSender returns promise but we need the cancel handle.
-       // My p2pManager.createSender returns a promise that ALSO has a .cancel() method attached?
-       // Wait, Promises can't have methods attached easily unless I return a custom object like { promise, cancel }.
-       // In my p2pManager implementation: return new Promise(...) -> inside I return `return { cancel }`?
-       // NO. `new Promise` constructor return value is ignored.
-       // I need to fix `p2pManager.js` to return an object `{ promise, cancel }` instead of just a Promise?
-       // OR, I can just not support cancel on the promise object directly.
-       // Let's check my p2pManager implementation.
-       // I wrote: `return new Promise(...)` and inside `return { cancel: ... }`. This return inside executor is IGNORED.
+       senderPeer = result 
        
-       // I made a mistake in p2pManager.js.
-       // I should fix p2pManager.js first or handle it differently.
-       // I will assume for now I can't cancel the peer via the promise variable.
-       // I'll fix p2pManager.js in the next step or right before this if possible?
-       // No, I already wrote the file. I need to fix p2pManager.js.
-       // Let's just implement the UI assuming valid logic, then fixing p2pManager.
-       
-       await promise
+       await result.promise
        
        syncStatus.value = 'done'
        setTimeout(() => {
@@ -402,9 +387,10 @@ const startSync = async (mode) => {
 const closeSyncModal = () => {
     isSyncActive.value = false
     if (timerInterval) clearInterval(timerInterval)
-    // We can't cancel the peer easily without fixing p2pManager.
-    // I'll force a reload or just let it time out if I can't fix it?
-    // I will fix p2pManager.js in a separate tool call.
+    if (senderPeer && senderPeer.cancel) {
+        senderPeer.cancel()
+        senderPeer = null
+    }
 }
 
 </script>

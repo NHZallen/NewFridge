@@ -199,7 +199,7 @@
                 <button type="submit" 
                         class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
                         :class="{'btn-success': isSuccess, 'btn-secondary': !isFormValid && !isSuccess}"
-                        :disabled="isUploading || isCompressing || isSuccess">
+                        :disabled="isUploading || isCompressing || isSuccess || !isFormValid || !isOnline">
                     
                     <!-- 1. 初始狀態文字 -->
                     <span v-if="!isUploading && !isCompressing && !isSuccess">
@@ -428,10 +428,6 @@ export default {
     };
 
     const submitItem = async () => {
-        if (!isOnline.value) {
-            alert("目前處於離線狀態，無法存入物品。");
-            return;
-        }
         // Validation
         if (!formItem.value.useExistingImage && !pendingImageBlob.value && !formItem.value.image) { 
             // if no new blob AND no existing image string (edit mode initial)

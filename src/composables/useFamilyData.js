@@ -13,6 +13,10 @@ const currentUserName = ref("")
 const isSettingUp = ref(false)
 const setupError = ref("")
 
+// Listener unsubscribe functions
+let unsubscribeItems = null
+let unsubscribeSettings = null
+
 export function useFamilyData() {
     const { db } = useFirebase()
 
@@ -46,18 +50,32 @@ export function useFamilyData() {
         }
     }
 
+    const stopListeners = () => {
+        if (unsubscribeItems) {
+            unsubscribeItems()
+            unsubscribeItems = null
+        }
+        if (unsubscribeSettings) {
+            unsubscribeSettings()
+            unsubscribeSettings = null
+        }
+    }
+
     const startListeners = () => {
         if (!db.value) return
 
+        // Clean up existing listeners first to prevent duplicates
+        stopListeners()
+
         // Items listener
-        onSnapshot(collection(db.value, "fridge_items"), (snapshot) => {
+        unsubscribeItems = onSnapshot(collection(db.value, "fridge_items"), (snapshot) => {
             items.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             // First load done
             isLoading.value = false
         })
 
         // Family settings listener
-        onSnapshot(doc(db.value, "family_metadata", "general"), (docSnap) => {
+        unsubscribeSettings = onSnapshot(doc(db.value, "family_metadata", "general"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data()
                 familySettings.value.familyName = data.familyName
@@ -136,6 +154,8 @@ export function useFamilyData() {
         isSettingUp,
         initFamilyData,
         updateFamilyName,
-        updateUserName
+        updateUserName,
+        stopListeners
     }
 }
+

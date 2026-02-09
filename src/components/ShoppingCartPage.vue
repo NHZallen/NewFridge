@@ -140,7 +140,8 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { getFirestore, doc, updateDoc } from 'firebase/firestore'
+import { doc, updateDoc } from 'firebase/firestore'
+import { db } from '../composables/useFirebase'
 import { useMainStore } from '../stores/index.js'
 
 export default {
@@ -202,9 +203,8 @@ export default {
     const handleRemove = async () => {
       store.startSync()
       try {
-        const db = getFirestore()
         const promises = localSelectedIds.value.map(id => 
-          updateDoc(doc(db, "fridge_items", id), { shoppingStatus: null })
+          updateDoc(doc(db.value, "fridge_items", id), { shoppingStatus: null })
         )
         await Promise.all(promises)
         localSelectedIds.value = []
@@ -219,9 +219,8 @@ export default {
     const handleMoveBack = async () => {
       store.startSync()
       try {
-        const db = getFirestore()
         const promises = localSelectedIds.value.map(id => 
-          updateDoc(doc(db, "fridge_items", id), { shoppingStatus: 'toBuy' })
+          updateDoc(doc(db.value, "fridge_items", id), { shoppingStatus: 'toBuy' })
         )
         await Promise.all(promises)
         localSelectedIds.value = []

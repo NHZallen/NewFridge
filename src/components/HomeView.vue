@@ -59,7 +59,7 @@
         class="col-6 col-md-4 col-lg-3" 
         v-for="item in visibleItems" 
         :key="item.id"
-        v-memo="[item.name, item.quantity, item.image, item.shoppingStatus, item.zone, item.storedDate, item.expiryDate, item.owners, isSelectionMode, selectedHomeIds.includes(item.id)]"
+        v-memo="[item, isSelectionMode, selectedHomeIds.includes(item.id)]"
       >
         <div class="card item-card h-100" 
              :class="getAlertClass(item)"

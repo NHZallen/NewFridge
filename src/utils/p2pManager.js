@@ -101,6 +101,7 @@ export const p2pManager = {
 
             // Timeout to avoid hanging forever
             timeoutId = setTimeout(() => {
+                if (connection) connection.close()
                 peer.destroy()
                 reject(new Error('連線逾時，請確認代碼是否正確或已過期'))
             }, 10000) // 10s to find the peer is enough

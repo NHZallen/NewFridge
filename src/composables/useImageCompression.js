@@ -1,11 +1,11 @@
 export function useImageCompression() {
     const compressFile = (file) => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader()
-            reader.readAsDataURL(file)
+            reader.onerror = () => reject(new Error('圖片讀取失敗'))
             reader.onload = (e) => {
                 const img = new Image()
-                img.src = e.target.result
+                img.onerror = () => reject(new Error('圖片載入失敗'))
                 img.onload = () => {
                     const canvas = document.createElement("canvas")
                     const MAX_WIDTH = 800
@@ -18,12 +18,17 @@ export function useImageCompression() {
                     const ctx = canvas.getContext("2d")
                     ctx.drawImage(img, 0, 0, w, h)
 
-                    // 改回傳 Blob 而非 DataURL
                     canvas.toBlob((blob) => {
-                        resolve(blob)
+                        if (blob) {
+                            resolve(blob)
+                        } else {
+                            reject(new Error('圖片壓縮失敗'))
+                        }
                     }, "image/jpeg", 0.7)
                 }
+                img.src = e.target.result
             }
+            reader.readAsDataURL(file)
         })
     }
 

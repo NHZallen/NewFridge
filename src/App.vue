@@ -619,15 +619,15 @@ const goToTakeOutPage = (item) => {
 const deleteItemPermanently = async (id) => {
   if(confirm("確定要永久刪除此物品嗎？此操作無法復原。")) {
     
-    // 1. Snapshot State (for rollback if needed - though rollback for delete is hard, we usually just refetch)
+    // 1. Snapshot State for rollback
     const targetItem = items.value.find(i => i.id === id)
-    if (!targetItem) return // Should not happen
+    if (!targetItem) return
+    const originalItems = JSON.parse(JSON.stringify(items.value))
 
     // Local Optimistic Update
-    // Remove from local list immediately
     const idx = items.value.findIndex(i => i.id === id)
     if (idx > -1) {
-       items.value.splice(idx, 1) // Direct mutation of Pinia state ref (since items is a ref from storeToRefs)
+       items.value.splice(idx, 1)
     }
     
     // Immediate Navigation
@@ -656,9 +656,9 @@ const deleteItemPermanently = async (id) => {
             await deleteDoc(doc(db.value, "fridge_items", id))
         } catch (e) {
             console.error("Delete Failed", e)
-            alert("刪除失敗，將重新載入資料")
-            // Rollback strategy: Refetch all items (simplest for delete)
-            window.location.reload() // Or trigger a re-fetch if we had a fetch action
+            // Rollback: restore original items
+            store.setItems(originalItems)
+            showToast("刪除失敗，已還原")
         } finally {
             store.endSync()
         }
@@ -671,16 +671,16 @@ const deleteItemPermanently = async (id) => {
 const deleteSelectedNoStock = async () => {
   if(confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
     
-    // Snapshot IDs to delete
+    // Snapshot for rollback
+    const originalItems = JSON.parse(JSON.stringify(items.value))
     const idsToDelete = [...selectedHomeIds.value]
     
     // CRITICAL: 在樂觀刪除前先深拷貝物品資料，用於後續圖片清理
     const itemsToDelete = items.value
       .filter(i => idsToDelete.includes(i.id))
-      .map(i => JSON.parse(JSON.stringify(i))) // Deep clone to avoid reactive reference issues
+      .map(i => JSON.parse(JSON.stringify(i)))
     
     // Local Optimistic Update
-    // Remove all selected items from local list
     idsToDelete.forEach(id => {
         const idx = items.value.findIndex(i => i.id === id)
         if (idx > -1) items.value.splice(idx, 1)
@@ -714,8 +714,9 @@ const deleteSelectedNoStock = async () => {
              
         } catch (e) {
             console.error("Batch Delete Failed", e)
-            alert("刪除失敗")
-            window.location.reload()
+            // Rollback: restore original items
+            store.setItems(originalItems)
+            showToast("刪除失敗，已還原")
         } finally {
             store.endSync()
         }

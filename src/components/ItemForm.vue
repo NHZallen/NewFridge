@@ -680,7 +680,10 @@ export default {
                 // If we uploaded a NEW image but Firestore failed, we must delete that image
                 if (!formItem.value.useExistingImage && pendingImageBlob.value && finalImageUrl) {
                     console.warn("Firestore write failed, rolling back image upload...", finalImageUrl);
-                    await deleteImage(finalImageUrl);
+                    const deleted = await deleteImage(finalImageUrl);
+                    if (!deleted) {
+                        console.error("ORPHAN IMAGE WARNING: Failed to rollback image:", finalImageUrl);
+                    }
                 }
                 throw firestoreErr; // Re-throw to trigger outer catch for UI alert
             }

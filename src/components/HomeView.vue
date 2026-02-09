@@ -128,6 +128,7 @@
                 <button v-if="!isSelectionMode" 
                         class="btn btn-sm mt-auto w-100 rounded-pill"
                         :class="item.quantity > 0 ? 'btn-outline-danger' : 'btn-outline-secondary'"
+                        :disabled="item.quantity > 0 && !isOnline"
                         @click.stop="item.quantity > 0 ? $emit('take-out', item) : $emit('edit', item)">
                     {{ item.quantity > 0 ? '取出 / 吃掉' : '查看詳情' }}
                 </button>

@@ -32,7 +32,7 @@
         <button class="btn btn-danger w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
                 :class="{'btn-success': isSuccess}"
                 @click="confirmTakeOut"
-                :disabled="isProcessing || isSuccess">
+                :disabled="isProcessing || isSuccess || !isOnline">
           
           <!-- 1. 初始狀態 -->
           <span v-if="!isProcessing && !isSuccess">
@@ -69,6 +69,11 @@ import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../composables/useFirebase'
 import { cleanupUnusedImages } from '../utils/storageUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
+import { useMainStore } from '../stores/index.js'
+import { storeToRefs } from 'pinia'
+
+const store = useMainStore()
+const { isOnline } = storeToRefs(store)
 
 const props = defineProps({
   item: { type: Object, default: null },

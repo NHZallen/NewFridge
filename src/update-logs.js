@@ -1,6 +1,17 @@
-export const LATEST_VERSION = "1.14.2";
+export const LATEST_VERSION = "1.14.3";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.3",
+    date: "2026-02-09",
+    title: "網路偵測與通知優化",
+    changes: [
+      "新功能：新增網路狀態偵測，離線時自動停用操作以保護資料",
+      "UI 優化：為通知橫幅加入關閉按鈕，減少畫面遮擋",
+      "修復 Bug：修正圖片壓縮錯誤、記憶體洩漏及重複邏輯問題",
+      "優化：改善樂觀更新的回滾機制，提升操作體驗"
+    ]
+  },
   {
     version: "1.14.2",
     date: "2026-02-03",

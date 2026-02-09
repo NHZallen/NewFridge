@@ -79,10 +79,12 @@ export const p2pManager = {
             })
         })
 
-        promise.cancel = () => {
-            if (cancelFunc) cancelFunc()
+        // Return object with both promise and cancel function
+        // This allows callers to access cancel() even after awaiting
+        return {
+            promise,
+            cancel: () => { if (cancelFunc) cancelFunc() }
         }
-        return promise
     },
 
     /**

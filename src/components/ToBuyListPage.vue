@@ -111,6 +111,7 @@
 <script>
 import { ref, computed } from 'vue'
 import { getFirestore, doc, updateDoc } from 'firebase/firestore'
+import { useMainStore } from '../stores/index.js'
 
 export default {
   name: 'ToBuyListPage',
@@ -122,6 +123,7 @@ export default {
   },
   emits: ['navigate'],
   setup(props, { emit }) {
+    const store = useMainStore()
     const localSelectedIds = ref([])
     
     const toBuyList = computed(() => {
@@ -147,22 +149,38 @@ export default {
     }
 
     const handleRemove = async () => {
-      const db = getFirestore()
-      const promises = localSelectedIds.value.map(id => 
-        updateDoc(doc(db, "fridge_items", id), { shoppingStatus: null })
-      )
-      await Promise.all(promises)
-      localSelectedIds.value = []
+      store.startSync()
+      try {
+        const db = getFirestore()
+        const promises = localSelectedIds.value.map(id => 
+          updateDoc(doc(db, "fridge_items", id), { shoppingStatus: null })
+        )
+        await Promise.all(promises)
+        localSelectedIds.value = []
+      } catch (e) {
+        console.error('Remove failed:', e)
+        alert('操作失敗，請檢查網路連線後再試')
+      } finally {
+        store.endSync()
+      }
     }
 
     const handleMoveToCart = async () => {
-      const db = getFirestore()
-      const promises = localSelectedIds.value.map(id => 
-        updateDoc(doc(db, "fridge_items", id), { shoppingStatus: 'inCart' })
-      )
-      await Promise.all(promises)
-      localSelectedIds.value = []
-      emit('navigate', 'shopping-cart')
+      store.startSync()
+      try {
+        const db = getFirestore()
+        const promises = localSelectedIds.value.map(id => 
+          updateDoc(doc(db, "fridge_items", id), { shoppingStatus: 'inCart' })
+        )
+        await Promise.all(promises)
+        localSelectedIds.value = []
+        emit('navigate', 'shopping-cart')
+      } catch (e) {
+        console.error('Move to cart failed:', e)
+        alert('操作失敗，請檢查網路連線後再試')
+      } finally {
+        store.endSync()
+      }
     }
 
     return {

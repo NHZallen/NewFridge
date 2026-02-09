@@ -674,6 +674,11 @@ const deleteSelectedNoStock = async () => {
     // Snapshot IDs to delete
     const idsToDelete = [...selectedHomeIds.value]
     
+    // CRITICAL: 在樂觀刪除前先深拷貝物品資料，用於後續圖片清理
+    const itemsToDelete = items.value
+      .filter(i => idsToDelete.includes(i.id))
+      .map(i => JSON.parse(JSON.stringify(i))) // Deep clone to avoid reactive reference issues
+    
     // Local Optimistic Update
     // Remove all selected items from local list
     idsToDelete.forEach(id => {
@@ -686,45 +691,10 @@ const deleteSelectedNoStock = async () => {
     isSelectionMode.value = false
 
     store.startSync()
-
-    const performBatchDelete = async () => {
-        try {
-            // --- Image Cleanup (Batch Delete) ---
-            // Note: We use rawItems/storeItems snapshot logic via IDs we saved
-            // But since we already deleted them from `items.value`, we can't find them there.
-            // Wait, we need the item data for image cleanup. 
-            // In optimistic UI, we deleted them from `items`.
-            // We should have grabbed them BEFORE deleting.
-            // Actually, we can't easily grab them inside this async block if we deleted them from store sync.
-            // So we need to grab data BEFORE optimistic delete.
-            // But we didn't... `items` is reactive.
-            
-            // Refactoring: We need to perform image cleanup logic concurrently or pass data to this closure.
-            // Let's rely on the fact that we can't easily get the data back if we deleted it locally.
-            // Actually, for image cleanup, we SHOULD have done it before or passed the objects.
-            
-            // Let's skip image cleanup optimization for this step or accept we might leak if we don't save references?
-            // BETTER: Grab references before optimistic delete.
-        } catch (e) {
-             console.error("Batch Delete Failed", e)
-             alert("部分刪除失敗，將重新載入")
-             window.location.reload()
-        } finally {
-            store.endSync()
-        }
-    }
-    
-    // IMPORTANT: To support image cleanup properly, we need the item objects. 
-    // Since we are refactoring, let's fix the flow:
-    
-    // 1. Grab items before deleting
-    const itemsToDelete = rawItems.value.filter(i => idsToDelete.includes(i.id)) // rawItems comes from useFamilyData, check if it's safe.
-    // Actually items.value is better but we are about to mutate it.
-    // Let's create the async function NOW with closed-over data.
     
     const performSafeBatchDelete = async () => {
         try {
-             // Image Cleanup
+             // Image Cleanup - 使用預先快照的物品資料
              for (const item of itemsToDelete) {
                 if (item) {
                     const allImages = new Set();
@@ -734,8 +704,6 @@ const deleteSelectedNoStock = async () => {
                             if (b.image) allImages.add(b.image);
                         });
                     }
-                    // We don't await individual cleanup to be faster? 
-                    // No, safe to await or Promise.all.
                     await cleanupUnusedImages(allImages, []); 
                 }
              }

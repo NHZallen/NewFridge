@@ -396,7 +396,7 @@ export default {
             formItem.value.image = null 
         } catch (e) {
             console.error(e)
-            alert("圖片處理失敗");
+            alert("圖片處理失敗：" + (e.message || "請嘗試選擇其他圖片或縮小圖片尺寸"));
         } finally {
             isCompressing.value = false;
         }
@@ -606,6 +606,9 @@ export default {
                     if (targetItem) {
                         // 合併到現有物品 (Merge)
                         let batches = [];
+                        // 記錄可能需要刪除的舊圖片 (待 Firestore 成功後再刪)
+                        let oldImageToDelete = null;
+                        
                         if (parseInt(targetItem.quantity) > 0) {
                             batches = targetItem.batches ? [...targetItem.batches] : [{
                                 storedDate: targetItem.storedDate,
@@ -616,9 +619,9 @@ export default {
                                 addedAt: 0
                             }];
                         } else {
+                            // 標記舊圖片待刪除，但不立即刪除
                             if (!formItem.value.useExistingImage && targetItem.image) {
-                                console.log("Restock: Deleting old archive image:", targetItem.image);
-                                deleteImage(targetItem.image);
+                                oldImageToDelete = targetItem.image;
                             }
                         }
 
@@ -635,6 +638,12 @@ export default {
                             ...result,
                             updatedAt: new Date()
                         });
+                        
+                        // Firestore 成功後才安全刪除舊圖片
+                        if (oldImageToDelete) {
+                            console.log("Restock: Deleting old archive image after success:", oldImageToDelete);
+                            deleteImage(oldImageToDelete);
+                        }
 
                     } else {
                         // 完全新增

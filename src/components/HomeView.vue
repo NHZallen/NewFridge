@@ -275,19 +275,12 @@ const visibleItems = computed(() => {
   return props.filteredItems.slice(0, homeVisibleCount.value)
 })
 
-// Reset visible count when filter changes
-watch(() => props.filteredItems, () => {
-    // If we filtered down to fewer items than visible, that's fine.
-    // Generally we might want to reset to 20 to save DOM if the list changed completely.
-    // visibleCount.value = 20
-    // Actually, preserving scroll pos usually means preserving rendered count unless strict reset needed.
-    // Let's reset if the change is drastic (implied by watcher) to avoid "blank" areas if implementation was Virtual.
-    // For Infinite Scroll, resetting is safer for search/filter results.
-    // For Infinite Scroll, resetting is safer for search/filter results.
-    if (props.searchText || props.filterZone) {
-      resetVisibleCount()
-    }
-}, { deep: true })
+// Reset visible count ONLY when filter keys change, not when data updates
+watch([() => props.searchText, () => props.filterZone], () => {
+    resetVisibleCount()
+    // Optional: Scroll to top when filter changes to show top results
+    window.scrollTo({ top: 0, behavior: 'instant' })
+})
 
 onMounted(() => {
   const options = {

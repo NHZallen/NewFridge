@@ -1,6 +1,14 @@
-export const LATEST_VERSION = "1.14.3";
+export const LATEST_VERSION = "1.14.4";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.4",
+    date: "2026-02-09",
+    title: "穩定性修復",
+    changes: [
+      "修復部分功能導致的頁面異常，提升系統穩定性"
+    ]
+  },
   {
     version: "1.14.3",
     date: "2026-02-09",

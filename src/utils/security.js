@@ -5,7 +5,8 @@
  */
 
 export function initSecurity() {
-    if (process.env.NODE_ENV !== 'production') return;
+    // Vite 環境建議使用 import.meta.env.PROD
+    if (!import.meta.env.PROD) return;
 
     // 1. 禁用右鍵選單
     document.addEventListener('contextmenu', (e) => e.preventDefault());

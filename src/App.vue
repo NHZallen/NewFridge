@@ -166,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { deleteImage, cleanupUnusedImages } from './utils/storageUtils.js'
 import { storeToRefs } from 'pinia'
@@ -177,6 +177,7 @@ import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
 import { initSecurity } from './utils/security'
+
 
 // Composables
 import { useBootstrap } from './composables/useBootstrap'
@@ -324,8 +325,14 @@ onMounted(async () => {
     loadSettings()
     showUpdateModal()
     
-    window.addEventListener('scroll', () => {
+    // Scroll Listener
+    const handleScroll = () => {
       showScrollTop.value = window.scrollY > 300
+    }
+    window.addEventListener('scroll', handleScroll)
+    
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll)
     })
 
     const config = await checkConfig()
@@ -379,8 +386,8 @@ const prefetchComponents = () => {
 // 保存初始設定 (SetupScreen)
 const saveInitialConfig = async () => {
   setupError.value = ""
-  if (!inputConfigStr.value.includes("firebaseConfig") && !inputConfigStr.value.includes("{")) {
-    setupError.value = "格式似乎不正確，請複製包含 { ... } 的完整程式碼"
+  if (!inputConfigStr.value.trim()) {
+    setupError.value = "請輸入設定內容"
     return
   }
   
@@ -393,11 +400,29 @@ const saveInitialConfig = async () => {
   
   try {
     let cleanStr = inputConfigStr.value.trim()
+    // 移除可能的 JS 變數宣告
     cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '')
+    // 移除結尾的分號
     cleanStr = cleanStr.replace(/;$/, '')
     
-    const configObj = (new Function(`return ${cleanStr}`))()
-    if (!configObj.projectId) throw new Error("無效的設定內容")
+    // 嘗試尋找並提取 JSON 物件部分 { ... }
+    const jsonMatch = cleanStr.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+        cleanStr = jsonMatch[0]
+    }
+
+    let configObj
+    try {
+        configObj = JSON.parse(cleanStr)
+    } catch (jsonErr) {
+        // 如果標準 JSON 解析失敗，嘗試寬容解析 (針對未加引號的 key)
+        // 注意：這僅是簡單的正則替換，仍建議使用者提供標準 JSON
+        const relaxedJson = cleanStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+                                    .replace(/'/g, '"')
+        configObj = JSON.parse(relaxedJson)
+    }
+    
+    if (!configObj || !configObj.projectId) throw new Error("無效的設定內容，請確認格式為 JSON")
 
     await initFirebase(configObj)
     await initFamilyData(inputUserName.value.trim())
@@ -406,7 +431,7 @@ const saveInitialConfig = async () => {
     
   } catch (e) {
     console.error(e)
-    setupError.value = "設定失敗：" + (e.message || "請檢查代碼格式或網路連線");
+    setupError.value = "設定失敗：" + (e.message || "請檢查代碼格式(建議使用標準 JSON)");
   } finally {
     isSettingUp.value = false
   }
@@ -734,10 +759,16 @@ const deleteSelectedNoStock = async () => {
   }
 }
 
-// 批次加入待買 (Optimistic UI)
+// 批次加入待買 (Optimistic UI with Rollback)
 const addBatchToBuy = async () => {
   const idsToUpdate = [...selectedHomeIds.value]
   
+  // Snapshot for rollback
+  const originalStatuses = idsToUpdate.map(id => {
+      const item = items.value.find(i => i.id === id)
+      return { id, status: item ? item.shoppingStatus : null }
+  })
+
   // Local Optimistic Update
   idsToUpdate.forEach(id => {
       const item = items.value.find(i => i.id === id)
@@ -759,9 +790,14 @@ const addBatchToBuy = async () => {
         await Promise.all(promises)
       } catch (e) {
           console.error("Batch Update Failed", e)
-          alert("更新失敗")
-          // Rollback? Just reload or let user try again.
-          // Reverting shoppingStatus is annoying locally without snapshot.
+          alert("更新失敗，正在還原狀態...")
+          
+          // Rollback
+          originalStatuses.forEach(({ id, status }) => {
+               const item = items.value.find(i => i.id === id)
+               if (item) item.shoppingStatus = status
+          })
+          
       } finally {
           store.endSync()
       }

@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { collection, doc, onSnapshot, setDoc, getDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion, runTransaction } from 'firebase/firestore'
 import { useFirebase } from './useFirebase'
 
 // Singleton state to persist across component mounting if needed
@@ -33,15 +33,15 @@ export function useFamilyData() {
                 })
                 familySettings.value = { familyName: "我的家庭", members: [userName] }
             } else {
+                // Atomic Update: Join Family
+                await updateDoc(settingsRef, {
+                    members: arrayUnion(userName)
+                })
+                // Listener will update local state, but we ensure basic data is ready
                 const data = docSnap.data()
-                let members = data.members || []
-                if (!members.includes(userName)) {
-                    members.push(userName)
-                    await updateDoc(settingsRef, { members: members })
-                }
                 familySettings.value = {
                     familyName: data.familyName || "我的家庭",
-                    members: members
+                    members: data.members // This might be stale until snapshot updates, but acceptable
                 }
             }
         } catch (e) {
@@ -72,6 +72,9 @@ export function useFamilyData() {
             items.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             // First load done
             isLoading.value = false
+        }, (error) => {
+            console.error("Items Listener Error:", error)
+            isLoading.value = false
         })
 
         // Family settings listener
@@ -91,6 +94,8 @@ export function useFamilyData() {
                     }
                 }
             }
+        }, (error) => {
+            console.error("Settings Listener Error:", error)
         })
     }
 
@@ -126,21 +131,34 @@ export function useFamilyData() {
 
     const updateUserName = async (oldName, newName) => {
         if (!newName || !db.value) return false
+        const docRef = doc(db.value, "family_metadata", "general")
 
         try {
-            const updatedMembers = familySettings.value.members.filter(m => m !== oldName)
-            updatedMembers.push(newName)
+            // Atomic Rename using Transaction
+            await runTransaction(db.value, async (transaction) => {
+                const docSnap = await transaction.get(docRef);
+                if (!docSnap.exists()) throw "Document does not exist!";
 
-            await updateDoc(doc(db.value, "family_metadata", "general"), {
-                members: updatedMembers,
-                latest_rename: { from: oldName, to: newName, at: Date.now() }
-            })
+                const data = docSnap.data();
+                let members = data.members || [];
+
+                // Remove old, add new
+                const newMembers = members.filter(m => m !== oldName);
+                if (!newMembers.includes(newName)) {
+                    newMembers.push(newName);
+                }
+
+                transaction.update(docRef, {
+                    members: newMembers,
+                    latest_rename: { from: oldName, to: newName, at: Date.now() }
+                });
+            });
 
             currentUserName.value = newName
             localStorage.setItem("fridge_user_name", newName)
             return true
         } catch (e) {
-            console.error(e)
+            console.error("Rename failed", e)
             return false
         }
     }

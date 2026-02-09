@@ -65,7 +65,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../composables/useFirebase'
 import { cleanupUnusedImages } from '../utils/storageUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
@@ -191,8 +191,9 @@ const confirmTakeOut = async () => {
       }
 
       // 4. PERFORM REMOTE UPDATE
-      if (imageCleanupTask) await imageCleanupTask();
+      // FIXED: Update DB first, then clean up images to prevent data loss if DB update fails
       await updateDoc(doc(db.value, "fridge_items", targetId), updateData)
+      if (imageCleanupTask) await imageCleanupTask();
 
       // Success Animation
       isProcessing.value = false

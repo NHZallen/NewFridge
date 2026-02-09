@@ -19,6 +19,12 @@
 
     <!-- 主應用程式 -->
     <template v-else>
+      <!-- 離線警告橫幅 -->
+      <div v-if="!isOnline" class="offline-banner">
+        <i class="bi bi-wifi-off me-2"></i>
+        目前無網路連線，部分功能已停用
+      </div>
+
       <!-- HOME PAGE -->
       <HomeView
         v-if="!isLoading && currentPage==='home'"
@@ -209,6 +215,7 @@ const {
   familySettings, 
   currentUser: storeCurrentUser,
   isLoading,
+  isOnline,
   searchText,
   filterZone,
   filteredItems,

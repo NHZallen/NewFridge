@@ -122,12 +122,12 @@
             </div>
             <div class="island-controls">
                 <button class="island-trash-btn" 
-                        :disabled="localSelectedIds.length === 0"
+                        :disabled="localSelectedIds.length === 0 || !isOnline"
                         @click="handleRemove">
                     <span class="material-symbols-outlined">delete</span>
                 </button>
                  <button class="island-action-btn" 
-                        :disabled="localSelectedIds.length === 0"
+                        :disabled="localSelectedIds.length === 0 || !isOnline"
                         @click="handleMoveBack">
                     放回待買
                     <span class="material-symbols-outlined">shopping_cart</span>
@@ -143,6 +143,7 @@ import { ref, computed } from 'vue'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../composables/useFirebase'
 import { useMainStore } from '../stores/index.js'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ShoppingCartPage',
@@ -155,6 +156,7 @@ export default {
   emits: ['navigate', 'start-purchase'],
   setup(props, { emit }) {
     const store = useMainStore()
+    const { isOnline } = storeToRefs(store)
     const localSelectedIds = ref([])
     const cartFilterZone = ref('all')
     

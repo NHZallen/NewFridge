@@ -36,7 +36,7 @@
                             </div>
                             <!-- 快速儲存按鈕 -->
                             <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 ms-2" 
-                                    @click="submitItem" :disabled="isUploading || isCompressing">
+                                    @click="submitItem" :disabled="isUploading || isCompressing || !isOnline">
                                 <i class="bi bi-check-lg me-1"></i>儲存
                             </button>
                         </div>
@@ -68,7 +68,8 @@
                 </div>
 
                 <!-- 偵測重複提示 -->
-                <div v-if="matchedExistingItem" class="alert alert-warning d-flex align-items-start mb-3" role="alert">
+                <div v-if="matchedExistingItem && !dismissedExistingAlert" class="alert alert-warning d-flex align-items-start mb-3 position-relative" role="alert">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" @click="dismissedExistingAlert = true" aria-label="Close"></button>
                     <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
                     <div>
                         <div class="fw-bold">發現相同物品</div>
@@ -77,7 +78,8 @@
                 </div>
 
                 <!-- 跨區重複提示 -->
-                <div v-if="matchedOtherZoneItem" class="alert alert-info d-flex align-items-start mb-3" role="alert">
+                <div v-if="matchedOtherZoneItem && !dismissedOtherZoneAlert" class="alert alert-info d-flex align-items-start mb-3 position-relative" role="alert">
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" @click="dismissedOtherZoneAlert = true" aria-label="Close"></button>
                     <i class="bi bi-info-circle-fill me-2 mt-1"></i>
                     <div>
                         <div class="fw-bold">其他區域已有此物品</div>
@@ -197,7 +199,7 @@
                 <button type="submit" 
                         class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow-sm d-flex align-items-center justify-content-center overflow-hidden position-relative" 
                         :class="{'btn-success': isSuccess, 'btn-secondary': !isFormValid && !isSuccess}"
-                        :disabled="isUploading || isCompressing || isSuccess || !isFormValid">
+                        :disabled="isUploading || isCompressing || isSuccess || !isFormValid || !isOnline">
                     
                     <!-- 1. 初始狀態文字 -->
                     <span v-if="!isUploading && !isCompressing && !isSuccess">
@@ -241,6 +243,8 @@ import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
 import { uploadImage, deleteImage, cleanupUnusedImages } from '../utils/storageUtils.js'
+import { useMainStore } from '../stores/index.js'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ItemForm',
@@ -253,11 +257,18 @@ export default {
   },
   emits: ['cancel', 'submit-success', 'delete-item', 'update-pending-id'],
   setup(props, { emit }) {
+    const store = useMainStore()
+    const { isOnline } = storeToRefs(store)
+    
     const formItem = ref({ ...props.initialItem })
     const isCompressing = ref(false)
     const isUploading = ref(false)
     const isSuccess = ref(false)
     const showOwnerDropdown = ref(false)
+    
+    // Dismissible banner states
+    const dismissedExistingAlert = ref(false)
+    const dismissedOtherZoneAlert = ref(false)
     
     // Store the raw Blob for uploading later
     const pendingImageBlob = ref(null)

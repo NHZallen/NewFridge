@@ -14,7 +14,16 @@ export const useMainStore = defineStore('main', () => {
 
     const isLoading = ref(false)
     const activeSyncs = ref(0)
-    
+
+    // Network Status
+    const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
+
+    // Setup network listeners (runs once when store is created)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('online', () => { isOnline.value = true })
+        window.addEventListener('offline', () => { isOnline.value = false })
+    }
+
     // Infinite Scroll State
     const homeVisibleCount = ref(20)
 
@@ -146,6 +155,7 @@ export const useMainStore = defineStore('main', () => {
         familySettings,
         currentUser,
         isLoading,
+        isOnline,
         searchText,
         filterZone,
 

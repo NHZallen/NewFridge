@@ -152,7 +152,11 @@
     </button>
 
     <!-- 一般模式的 FAB -->
-    <button v-if="!isSelectionMode && filterZone !== 'nostock'" class="fab-btn" @click="$emit('add-page')">
+    <button v-if="!isSelectionMode && filterZone !== 'nostock'" 
+            class="fab-btn" 
+            :class="{ 'opacity-50': !isOnline }"
+            :disabled="!isOnline"
+            @click="$emit('add-page')">
       <i class="bi bi-plus-lg"></i>
     </button>
 
@@ -166,12 +170,12 @@
     <div v-if="isSelectionMode" class="fixed-bottom p-3 bg-white border-top shadow-lg">
          <div v-if="filterZone === 'nostock'" class="d-flex gap-2">
             <button class="btn btn-outline-danger w-50 rounded-pill py-2" 
-                    :disabled="selectedHomeIds.length === 0"
+                    :disabled="selectedHomeIds.length === 0 || !isOnline"
                     @click="$emit('delete-selected')">
                 <i class="bi bi-trash me-1"></i> 永久刪除
             </button>
              <button class="btn btn-info text-white w-50 rounded-pill py-2 fw-bold" 
-                    :disabled="selectedHomeIds.length === 0"
+                    :disabled="selectedHomeIds.length === 0 || !isOnline"
                     @click="$emit('add-batch-to-buy')">
                 <i class="bi bi-cart-plus me-1"></i> 加入待買
             </button>
@@ -197,7 +201,7 @@ import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 const store = useMainStore()
-const { isSyncing, homeVisibleCount } = storeToRefs(store)
+const { isSyncing, homeVisibleCount, isOnline } = storeToRefs(store)
 const { loadMoreItems, resetVisibleCount } = store
 
 const props = defineProps({

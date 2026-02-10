@@ -81,8 +81,13 @@ export function useFamilyData() {
         unsubscribeSettings = onSnapshot(doc(db.value, "family_metadata", "general"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data()
-                familySettings.value.familyName = data.familyName
-                familySettings.value.members = data.members || []
+
+                // Immutable update to allow shallow watching in App.vue
+                familySettings.value = {
+                    ...familySettings.value,
+                    familyName: data.familyName,
+                    members: data.members || []
+                }
 
                 // Handle Rename logic
                 if (data.latest_rename) {

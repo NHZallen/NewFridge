@@ -241,7 +241,7 @@ import { doc, collection, addDoc, updateDoc, deleteDoc } from 'firebase/firestor
 import { db } from '../composables/useFirebase'
 import { useImageCompression } from '../composables/useImageCompression.js'
 import { addDaysToDate } from '../utils/dateUtils.js'
-import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
+import { recalculateItemFromBatches, deductFromBatches } from '../utils/inventoryUtils.js'
 import { uploadImage, deleteImage, cleanupUnusedImages } from '../utils/storageUtils.js'
 import { useMainStore } from '../stores/index.js'
 import { storeToRefs } from 'pinia'
@@ -521,63 +521,38 @@ export default {
 
                     } else if (diff < 0) {
                          // === 減少數量 (Reduce Quantity) ===
-                        batches.sort((a, b) => {
-                            const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31");
-                            const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31");
-                            if (dateA < dateB) return -1;
-                            if (dateA > dateB) return 1;
-                            const storeA = a.storedDate || "9999-12-31";
-                            const storeB = b.storedDate || "9999-12-31";
-                            if (storeA < storeB) return -1;
-                            if (storeA > storeB) return 1;
-                            return 0;
-                        });
+                         let amountToRemove = Math.abs(diff);
+                         
+                         const { newBatches, potentiallyDeletedImages } = deductFromBatches(batches, amountToRemove);
+                         
+                         batches = newBatches;
+                         
+                         // --- Image Cleanup Logic ---
+                         // Identify images still in use
+                         const remainingImages = new Set();
+                         if (newBatch.image) remainingImages.add(newBatch.image); 
+                         
+                         batches.forEach(b => {
+                             if (b.image) remainingImages.add(b.image);
+                         });
 
-                        let amountToRemove = Math.abs(diff);
-                        const newBatches = [];
-                        const imagesPotentiallyDeleted = new Set(); 
+                         // Delete images that are truly gone — collect for deferred cleanup
+                         const imagesToCleanup = new Set();
+                         potentiallyDeletedImages.forEach(url => {
+                             if (!remainingImages.has(url)) {
+                                  if (!isReplacingImage) {
+                                       imagesToCleanup.add(url);
+                                  }
+                             }
+                         });
+                         // Add old replaced images if needed
+                         if (isReplacingImage) {
+                            oldImagesToDelete.forEach(url => {
+                                if (!remainingImages.has(url)) imagesToCleanup.add(url);
+                            });
+                         }
 
-                        for (let batch of batches) {
-                            if (amountToRemove <= 0) {
-                                newBatches.push(batch);
-                                continue;
-                            }
-
-                            let batchQty = parseInt(batch.quantity);
-                            
-                            if (batch.image) imagesPotentiallyDeleted.add(batch.image);
-
-                            if (batchQty > amountToRemove) {
-                                batch.quantity = batchQty - amountToRemove;
-                                amountToRemove = 0;
-                                newBatches.push(batch);
-                            } else {
-                                amountToRemove -= batchQty;
-                            }
-                        }
-                        
-                        batches = newBatches;
-                        
-                        // --- Image Cleanup Logic ---
-                        // Identify images still in use
-                        const remainingImages = new Set();
-                        if (newBatch.image) remainingImages.add(newBatch.image); 
-                        
-                        batches.forEach(b => {
-                            if (b.image) remainingImages.add(b.image);
-                        });
-
-                        // Delete images that are truly gone — collect for deferred cleanup
-                        const imagesToCleanup = new Set();
-                        imagesPotentiallyDeleted.forEach(url => {
-                            if (!remainingImages.has(url)) {
-                                 if (!isReplacingImage) {
-                                      imagesToCleanup.add(url);
-                                 }
-                            }
-                        });
-
-                    } else {
+                     } else {
                         // === 數量不變 (No Quantity Change) ===
                         if (batches.length > 0) {
                              batches[0] = {
@@ -607,11 +582,11 @@ export default {
                     // Image cleanup AFTER successful Firestore write to prevent irrecoverable data loss
                     if (isReplacingImage && oldImagesToDelete.size > 0) {
                         console.log("Image Replaced: Cleaning up old images...");
-                        cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
+                        await cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
                     }
                     if (typeof imagesToCleanup !== 'undefined' && imagesToCleanup.size > 0) {
                         console.log("Edit Limit: Cleaning up unused images after DB write...");
-                        cleanupUnusedImages(imagesToCleanup, []);
+                        await cleanupUnusedImages(imagesToCleanup, []);
                     }
 
                 } else {
@@ -657,7 +632,7 @@ export default {
                         // Firestore 成功後才安全刪除舊圖片
                         if (oldImageToDelete) {
                             console.log("Restock: Deleting old archive image after success:", oldImageToDelete);
-                            deleteImage(oldImageToDelete);
+                            await deleteImage(oldImageToDelete);
                         }
 
                     } else {

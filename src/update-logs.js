@@ -1,6 +1,16 @@
-export const LATEST_VERSION = "1.14.5";
+export const LATEST_VERSION = "1.14.6";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.6",
+    date: "2026-02-10",
+    title: "代碼品質與穩定性優化",
+    changes: [
+      "邏輯重構：優化批次排序與扣除邏輯，消除重複代碼並確保先進先出 (FEFO) 的一致性",
+      "穩定性修正：修復圖片清理流程中的異步處理問題，確保資料與檔案同步刪除，防止潛在錯誤",
+      "效能優化：優化家庭設定的監聽機制，移除高耗能的深層監聽 (Deep Watch)，提升應用程式運作效率"
+    ]
+  },
   {
     version: "1.14.5",
     date: "2026-02-10",

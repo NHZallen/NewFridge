@@ -68,7 +68,7 @@ import { ref } from 'vue'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../composables/useFirebase'
 import { cleanupUnusedImages } from '../utils/storageUtils.js'
-import { recalculateItemFromBatches } from '../utils/inventoryUtils.js'
+import { recalculateItemFromBatches, deductFromBatches } from '../utils/inventoryUtils.js'
 import { useMainStore } from '../stores/index.js'
 import { storeToRefs } from 'pinia'
 
@@ -142,38 +142,7 @@ const confirmTakeOut = async () => {
               image: originalState.image
          }]
 
-         // Sort logic
-         batches.sort((a, b) => {
-            const dateA = a.noExpiry ? "9999-12-31" : (a.expiryDate || "9999-12-31")
-            const dateB = b.noExpiry ? "9999-12-31" : (b.expiryDate || "9999-12-31")
-            if (dateA < dateB) return -1
-            if (dateA > dateB) return 1
-            const storeA = a.storedDate || "9999-12-31"
-            const storeB = b.storedDate || "9999-12-31"
-            if (storeA < storeB) return -1
-            if (storeA > storeB) return 1
-            return 0
-         })
-
-         let remainingToTake = takeQty
-         const newBatches = []
-         
-         for (let batch of batches) {
-              if (remainingToTake <= 0) {
-                newBatches.push(batch)
-                continue
-              }
-              let batchQty = parseInt(batch.quantity)
-              if (batchQty > remainingToTake) {
-                // Clone batch to avoid reference issues
-                const newBatch = { ...batch } 
-                newBatch.quantity = batchQty - remainingToTake
-                remainingToTake = 0
-                newBatches.push(newBatch)
-              } else {
-                remainingToTake -= batchQty
-              }
-         }
+         const { newBatches, potentiallyDeletedImages } = deductFromBatches(batches, takeQty);
          
          const result = recalculateItemFromBatches(newBatches, originalState.owners)
          updateData = { ...result }
@@ -186,6 +155,12 @@ const confirmTakeOut = async () => {
          const keepingImages = new Set();
          if (result.image) keepingImages.add(result.image);
          newBatches.forEach(b => { if (b.image) keepingImages.add(b.image); });
+         
+         // Add images that were in the deducted batches but strictly NOT in the new result
+         const imagesToCleanup = new Set();
+         potentiallyDeletedImages.forEach(url => {
+             if (!keepingImages.has(url)) imagesToCleanup.add(url);
+         });
          
          imageCleanupTask = () => cleanupUnusedImages(oldImages, keepingImages);
       }

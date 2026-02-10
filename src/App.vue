@@ -261,7 +261,7 @@ const {
 
 // Sync Composables -> Store
 watch(rawItems, (val) => { store.setItems(val) }, { immediate: true })
-watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { deep: true, immediate: true })
+watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { immediate: true })
 watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
 watch(rawIsLoading, (val) => { store.setLoading(val) }, { immediate: true })
 

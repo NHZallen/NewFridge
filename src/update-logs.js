@@ -1,4 +1,4 @@
-export const LATEST_VERSION = "1.14.7";
+export const LATEST_VERSION = "1.14.8";
 
 export const UPDATE_LOGS = [
   {

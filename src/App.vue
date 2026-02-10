@@ -194,7 +194,7 @@ import { APP_VERSION } from './utils/constants'
 import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
-import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
+
 
 
 // Composables

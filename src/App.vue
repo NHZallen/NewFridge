@@ -25,9 +25,27 @@
         目前無網路連線，部分功能已停用
       </div>
 
+      <!-- 登入提示 (Login Prompt) -->
+      <div v-if="!currentUser && !isLoading" class="d-flex flex-column align-items-center justify-content-center vh-100 text-center p-4">
+          <div class="mb-4">
+              <i class="bi bi-shield-lock display-1 text-primary"></i>
+          </div>
+          <h2 class="mb-3 fw-bold">存取權限驗證</h2>
+          <p class="text-muted mb-4 lead">
+              為了保護您的資料安全，我們已升級安全規則。<br>
+              請登入您的 Google 帳號以繼續使用。
+          </p>
+          <button class="btn btn-lg btn-primary rounded-pill px-5 py-3 shadow-lg" @click="linkGoogleAccount">
+              <i class="bi bi-google me-2"></i> 使用 Google 帳號登入
+          </button>
+          <div class="mt-4 text-muted small">
+              <i class="bi bi-info-circle me-1"></i> 僅用於驗證身分，不會存取您的個人資料
+          </div>
+      </div>
+
       <!-- HOME PAGE -->
       <HomeView
-        v-if="!isLoading && currentPage==='home'"
+        v-else-if="!isLoading && currentPage==='home'"
         :filtered-items="filteredItems"
         v-model:filter-zone="filterZone"
         v-model:search-text="searchText"
@@ -176,7 +194,7 @@ import { APP_VERSION } from './utils/constants'
 import { getTodayStr, getDays } from './utils/dateUtils'
 import { isNoExpiry } from './utils/itemHelpers'
 import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
-import { initSecurity } from './utils/security'
+import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
 
 
 // Composables
@@ -340,7 +358,6 @@ onUnmounted(() => {
 
 // 初始化流程
 onMounted(async () => {
-    initSecurity()
     window.addEventListener('scroll', onScrollHandler)
     loadSettings()
     showUpdateModal()
@@ -363,9 +380,25 @@ onMounted(async () => {
         }
     }
 
+
+
     // Start background prefetch after initial load
     prefetchComponents()
 })
+
+// Watch for auth changes to trigger data load
+watch(currentUser, async (user) => {
+    if (user) {
+        // User logged in, try to init data if not already loaded
+        const storedUser = localStorage.getItem("fridge_user_name")
+        if (storedUser) {
+             try {
+                // If initFamilyData was blocked by permissions earlier, retry now
+                await initFamilyData(storedUser)
+             } catch(e) { console.error("Data init retry failed", e) }
+        }
+    }
+}, { immediate: true })
 
 const prefetchComponents = () => {
   const components = [

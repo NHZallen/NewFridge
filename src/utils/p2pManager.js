@@ -3,6 +3,38 @@ import { Peer } from 'peerjs'
 // Prefix to make IDs unique on the public server
 const APP_PREFIX = 'fridge-app-v1-sync-'
 
+// --- AES-GCM Encryption Helpers ---
+
+async function deriveKey(code) {
+    const encoder = new TextEncoder()
+    const keyMaterial = await crypto.subtle.digest('SHA-256', encoder.encode(code))
+    return crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+}
+
+async function encryptData(data, code) {
+    const key = await deriveKey(code)
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const encoded = new TextEncoder().encode(JSON.stringify(data))
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded)
+    return {
+        iv: Array.from(iv),
+        data: Array.from(new Uint8Array(ciphertext)),
+        v: 2
+    }
+}
+
+async function decryptData(payload, code) {
+    const key = await deriveKey(code)
+    const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: new Uint8Array(payload.iv) },
+        key,
+        new Uint8Array(payload.data)
+    )
+    return JSON.parse(new TextDecoder().decode(decrypted))
+}
+
+// --- P2P Manager ---
+
 export const p2pManager = {
     // Generate a random 6-character alphanumeric code
     generateSyncCode() {
@@ -48,23 +80,18 @@ export const p2pManager = {
                 if (timeoutId) clearTimeout(timeoutId)
                 connection = conn
 
-                conn.on('open', () => {
-                    // Simple XOR masking for "encryption"
-                    const jsonStr = JSON.stringify(data)
-                    const key = code
-                    let encrypted = ''
-                    for (let i = 0; i < jsonStr.length; i++) {
-                        encrypted += String.fromCharCode(jsonStr.charCodeAt(i) ^ key.charCodeAt(i % key.length))
+                conn.on('open', async () => {
+                    try {
+                        const encrypted = await encryptData(data, code)
+                        conn.send(encrypted)
+                    } catch (e) {
+                        console.error('Encryption failed:', e)
+                        conn.send({ error: '加密失敗' })
                     }
 
-                    conn.send({ data: encrypted, v: 1 }) // Versioned payload
-
-                    // Wait a bit to ensure sent before closing usually, 
-                    // but for simplicity we rely on peerjs buffering or close after short delay
                     setTimeout(() => {
                         conn.close()
                         peer.destroy()
-                        // Sender logic usually done here
                     }, 1000)
                 })
             })
@@ -104,24 +131,21 @@ export const p2pManager = {
                     // Connected! Waiting for data.
                 })
 
-                connection.on('data', (payload) => {
+                connection.on('data', async (payload) => {
                     if (timeoutId) clearTimeout(timeoutId)
 
                     try {
-                        let encrypted = payload.data
-                        const key = code
-                        let decrypted = ''
-                        for (let i = 0; i < encrypted.length; i++) {
-                            decrypted += String.fromCharCode(encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length))
+                        if (payload.error) {
+                            throw new Error(payload.error)
                         }
-                        const data = JSON.parse(decrypted)
+                        const data = await decryptData(payload, code)
                         resolve(data)
                     } catch (e) {
-                        console.error("Decryption failed", e)
-                        reject(new Error("資料解密失敗與驗證錯誤"))
+                        console.error('Decryption failed', e)
+                        reject(new Error('資料解密失敗與驗證錯誤'))
                     }
-                    connection.close() // Close connection
-                    setTimeout(() => peer.destroy(), 500) // Destroy peer shortly after
+                    connection.close()
+                    setTimeout(() => peer.destroy(), 500)
                 })
 
                 connection.on('error', (err) => {

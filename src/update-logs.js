@@ -1,6 +1,15 @@
-export const LATEST_VERSION = "1.14.8";
+export const LATEST_VERSION = "1.14.9";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.9",
+    date: "2026-02-10",
+    title: "安全加密升級與搜尋優化",
+    changes: [
+      "安全升級：P2P 同步加密從 XOR 混淆升級為 AES-GCM 標準加密，大幅提升 Firebase 配置傳輸安全性",
+      "搜尋優化：新增搜尋防抖機制 (Debounce)，快速輸入時減少不必要的過濾運算，提升流暢度"
+    ]
+  },
   {
     version: "1.14.8",
     date: "2026-02-10",

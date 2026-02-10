@@ -56,6 +56,13 @@ export default defineConfig({
     })
   ],
   build: {
-    minify: 'esbuild'
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   }
 })

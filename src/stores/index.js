@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { isNoExpiry } from '../utils/itemHelpers'
 import { getDays } from '../utils/dateUtils'
 
@@ -40,7 +40,17 @@ export const useMainStore = defineStore('main', () => {
 
     // UI Filters
     const searchText = ref("")
+    const debouncedSearchText = ref("")
     const filterZone = ref("all")
+
+    // Debounce search: UI stays responsive, filtering delays 250ms
+    let _searchTimer = null
+    watch(searchText, (val) => {
+        clearTimeout(_searchTimer)
+        _searchTimer = setTimeout(() => {
+            debouncedSearchText.value = val
+        }, 250)
+    })
 
     // === Actions ===
     const setItems = (newItems) => {
@@ -78,7 +88,7 @@ export const useMainStore = defineStore('main', () => {
     // === Getters (Computed) ===
 
     const filteredItems = computed(() => {
-        const keyword = searchText.value?.trim() || ""
+        const keyword = debouncedSearchText.value?.trim() || ""
         let list = items.value
 
         if (keyword) {

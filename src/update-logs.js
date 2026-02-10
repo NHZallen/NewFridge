@@ -1,6 +1,14 @@
-export const LATEST_VERSION = "1.14.7";
+export const LATEST_VERSION = "1.14.8";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.8",
+    date: "2026-02-10",
+    title: "緊急修復與版本更新",
+    changes: [
+      "修復 Bug：修正 App.vue 中的重複變數宣告，解決編譯失敗問題"
+    ]
+  },
   {
     version: "1.14.7",
     date: "2026-02-10",

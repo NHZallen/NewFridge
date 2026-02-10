@@ -256,7 +256,6 @@ const {
   isSettingUp,
   initFamilyData,
   updateFamilyName,
-  updateFamilyName,
   updateUserName,
   stopListeners,
   startListeners // Exposed for manual control

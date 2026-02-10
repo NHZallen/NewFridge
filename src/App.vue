@@ -190,7 +190,7 @@ import { deleteImage, cleanupUnusedImages } from './utils/storageUtils.js'
 import { storeToRefs } from 'pinia'
 
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
-import { APP_VERSION } from './utils/constants'
+import { APP_VERSION } from './utils/constants.js'
 import { getTodayStr } from './utils/dateUtils'
 
 
@@ -231,7 +231,6 @@ const store = useMainStore()
 const {
   items, 
   familySettings, 
-  currentUser: storeCurrentUser,
   isLoading,
   isOnline,
   searchText,

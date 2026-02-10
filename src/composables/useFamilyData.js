@@ -25,25 +25,29 @@ export function useFamilyData() {
 
         const settingsRef = doc(db.value, "family_metadata", "general")
         try {
-            const docSnap = await getDoc(settingsRef)
-            if (!docSnap.exists()) {
-                await setDoc(settingsRef, {
-                    familyName: "我的家庭",
-                    members: [userName]
-                })
-                familySettings.value = { familyName: "我的家庭", members: [userName] }
-            } else {
-                // Atomic Update: Join Family
-                await updateDoc(settingsRef, {
-                    members: arrayUnion(userName)
-                })
-                // Listener will update local state, but we ensure basic data is ready
-                const data = docSnap.data()
-                familySettings.value = {
-                    familyName: data.familyName || "我的家庭",
-                    members: data.members // This might be stale until snapshot updates, but acceptable
+            // 使用 Transaction 避免競態條件：兩位用戶同時首次加入時不會互相覆寫
+            await runTransaction(db.value, async (transaction) => {
+                const docSnap = await transaction.get(settingsRef)
+                if (!docSnap.exists()) {
+                    transaction.set(settingsRef, {
+                        familyName: "我的家庭",
+                        members: [userName]
+                    })
+                    familySettings.value = { familyName: "我的家庭", members: [userName] }
+                } else {
+                    const data = docSnap.data()
+                    const members = data.members || []
+                    if (!members.includes(userName)) {
+                        transaction.update(settingsRef, {
+                            members: arrayUnion(userName)
+                        })
+                    }
+                    familySettings.value = {
+                        familyName: data.familyName || "我的家庭",
+                        members: members.includes(userName) ? members : [...members, userName]
+                    }
                 }
-            }
+            })
         } catch (e) {
             console.error("Family Setup Error", e)
             throw e

@@ -441,7 +441,7 @@ export default {
             safeQuantity = parseInt(formItem.value.quantity);
         }
 
-        if (isNaN(safeQuantity)) safeQuantity = 0;
+        if (isNaN(safeQuantity) || safeQuantity < 0) safeQuantity = 0;
         
         if (safeQuantity != 0 && !formItem.value.storedDate) { 
             alert("請填存入日期"); return; 

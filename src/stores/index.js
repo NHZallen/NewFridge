@@ -19,9 +19,20 @@ export const useMainStore = defineStore('main', () => {
     const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
     // Setup network listeners (runs once when store is created)
+    const handleOnline = () => { isOnline.value = true }
+    const handleOffline = () => { isOnline.value = false }
+
     if (typeof window !== 'undefined') {
-        window.addEventListener('online', () => { isOnline.value = true })
-        window.addEventListener('offline', () => { isOnline.value = false })
+        window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', handleOffline)
+    }
+
+    // Cleanup network listeners when store is disposed
+    const cleanupNetworkListeners = () => {
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', handleOffline)
+        }
     }
 
     // Infinite Scroll State
@@ -177,6 +188,8 @@ export const useMainStore = defineStore('main', () => {
 
         homeVisibleCount,
         loadMoreItems,
-        resetVisibleCount
+        resetVisibleCount,
+
+        cleanupNetworkListeners
     }
 })

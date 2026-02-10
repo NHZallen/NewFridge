@@ -16,15 +16,12 @@ export const p2pManager = {
 
     /**
      * Sender (Old Device)
-     * @param {string} code - The 6-digit code
-     * @param {object} payload - The data to send
-     * @param {function} onConnect - Callback when connection is established
-     * @returns {Promise} - Resolves when sent, rejects on timeout/error
+     * @param {Object} data - The data to send (Firebase config, etc.)
+     * @returns {Promise<string>} - The 6-digit code to show on UI
      */
-    createSender(code, payload, onConnect) {
-        let cancelFunc = null
-
-        const promise = new Promise((resolve, reject) => {
+    initSender(data) {
+        return new Promise((resolve, reject) => {
+            const code = this.generateSyncCode()
             const peerId = `${APP_PREFIX}${code}`
             const peer = new Peer(peerId)
             let connection = null
@@ -36,27 +33,24 @@ export const p2pManager = {
                 }
             }, 60000)
 
-            cancelFunc = () => {
+            let cancelFunc = () => {
                 if (timeoutId) clearTimeout(timeoutId)
+                if (connection) connection.close()
                 peer.destroy()
-                reject(new Error('使用者已取消'))
             }
 
             peer.on('open', (id) => {
-
+                console.log('Sender ID:', id)
+                resolve({ code, cancel: cancelFunc })
             })
 
             peer.on('connection', (conn) => {
-
-                connection = conn
                 if (timeoutId) clearTimeout(timeoutId)
-
-                if (onConnect) onConnect()
+                connection = conn
 
                 conn.on('open', () => {
-                    // Encrypt payload using a simple XOR with the code (Basic obfuscation)
-                    // This prevents casual sniffing of the config in peerjs server logs
-                    const jsonStr = JSON.stringify(payload)
+                    // Simple XOR masking for "encryption"
+                    const jsonStr = JSON.stringify(data)
                     const key = code
                     let encrypted = ''
                     for (let i = 0; i < jsonStr.length; i++) {
@@ -70,40 +64,28 @@ export const p2pManager = {
                     setTimeout(() => {
                         conn.close()
                         peer.destroy()
-                        resolve()
+                        // Sender logic usually done here
                     }, 1000)
                 })
             })
 
             peer.on('error', (err) => {
+                console.error('Sender Peer Error:', err)
                 if (timeoutId) clearTimeout(timeoutId)
-                peer.destroy()
-                console.error('Peer error:', err)
-                if (err.type === 'unavailable-id') {
-                    reject(new Error('代碼產生衝突，請重試')) // Should be rare
-                } else {
-                    reject(err)
-                }
+                reject(err)
             })
         })
-
-        // Return object with both promise and cancel function
-        // This allows callers to access cancel() even after awaiting
-        return {
-            promise,
-            cancel: () => { if (cancelFunc) cancelFunc() }
-        }
     },
 
     /**
      * Receiver (New Device)
      * @param {string} code - The 6-digit code entered by user
-     * @returns {Promise} - Resolves with received data
+     * @returns {Promise<Object>} - The received data
      */
-    createReceiver(code) {
+    connectToSender(code) {
         return new Promise((resolve, reject) => {
             const targetPeerId = `${APP_PREFIX}${code}`
-            const peer = new Peer() // Auto-generate ID for receiver
+            const peer = new Peer() // Auto ID
             let connection = null
             let timeoutId = null
 
@@ -119,26 +101,21 @@ export const p2pManager = {
                 connection = peer.connect(targetPeerId)
 
                 connection.on('open', () => {
-
-                    if (timeoutId) clearTimeout(timeoutId)
+                    // Connected! Waiting for data.
                 })
 
-                connection.on('data', (received) => {
+                connection.on('data', (payload) => {
+                    if (timeoutId) clearTimeout(timeoutId)
 
                     try {
-                        let decryptedData = received
-
-                        // Handle Encrypted Data
-                        if (received.v === 1 && received.data) {
-                            const key = code
-                            let decryptedStr = ''
-                            for (let i = 0; i < received.data.length; i++) {
-                                decryptedStr += String.fromCharCode(received.data.charCodeAt(i) ^ key.charCodeAt(i % key.length))
-                            }
-                            decryptedData = JSON.parse(decryptedStr)
+                        let encrypted = payload.data
+                        const key = code
+                        let decrypted = ''
+                        for (let i = 0; i < encrypted.length; i++) {
+                            decrypted += String.fromCharCode(encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length))
                         }
-
-                        resolve(decryptedData)
+                        const data = JSON.parse(decrypted)
+                        resolve(data)
                     } catch (e) {
                         console.error("Decryption failed", e)
                         reject(new Error("資料解密失敗與驗證錯誤"))
@@ -148,16 +125,20 @@ export const p2pManager = {
                 })
 
                 connection.on('error', (err) => {
-                    console.error('Connection error:', err)
-                    reject(err)
+                    if (timeoutId) clearTimeout(timeoutId)
+                    // Common error: peer-unavailable
+                    if (err.type === 'peer-unavailable') {
+                        reject(new Error('找不到來源裝置，請確認代碼是否正確'))
+                    } else {
+                        reject(err)
+                    }
                 })
             })
 
             peer.on('error', (err) => {
+                // Receiver init error
                 if (timeoutId) clearTimeout(timeoutId)
-                peer.destroy()
-                console.error('Peer error:', err)
-                reject(new Error('無法連線到該裝置，請確認代碼是否正確'))
+                reject(err)
             })
         })
     }

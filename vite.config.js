@@ -56,13 +56,6 @@ export default defineConfig({
     })
   ],
   build: {
-    sourcemap: false, // 禁用 Source Maps，讓別人無法還原原始碼
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // 移除 console.log
-        drop_debugger: true // 移除 debugger
-      }
-    }
+    minify: 'esbuild'
   }
 })

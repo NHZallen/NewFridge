@@ -1,6 +1,17 @@
-export const LATEST_VERSION = "1.14.6";
+export const LATEST_VERSION = "1.14.7";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.7",
+    date: "2026-02-10",
+    title: "穩定性修復與效能優化",
+    changes: [
+      "修復 Bug：解決刪除物品時的樂觀更新競態條件，消除畫面閃爍問題",
+      "優化：增強 Firebase 設定的 JSON 解析能力，自動處理註解、引號與格式錯誤",
+      "效能優化：為全站圖片加入 Lazy Loading (懶加載)，提升頁面載入速度並節省流量",
+      "修正：修復 Auth 監聽器重複註冊的問題，提升穩定性並減少記憶體負擔"
+    ]
+  },
   {
     version: "1.14.6",
     date: "2026-02-10",

@@ -4,7 +4,7 @@
     <!-- 圖片預覽層 -->
     <div v-if="previewImageUrl" class="image-preview-overlay" @click="closePreview">
       <button class="preview-close"><i class="bi bi-x-circle"></i></button>
-      <img :src="previewImageUrl" class="preview-img" @click.stop>
+      <img :src="previewImageUrl" class="preview-img" @click.stop loading="lazy">
     </div>
 
     <!-- 初始設定畫面 -->
@@ -256,11 +256,21 @@ const {
   isSettingUp,
   initFamilyData,
   updateFamilyName,
-  updateUserName
+  updateFamilyName,
+  updateUserName,
+  stopListeners,
+  startListeners // Exposed for manual control
 } = useFamilyData()
 
+// Sync Control Flag
+const isOptimisticUpdateActive = ref(false)
+
 // Sync Composables -> Store
-watch(rawItems, (val) => { store.setItems(val) }, { immediate: true })
+watch(rawItems, (val) => { 
+    if (!isOptimisticUpdateActive.value) {
+        store.setItems(val) 
+    }
+}, { immediate: true })
 watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { immediate: true })
 watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
 watch(rawIsLoading, (val) => { store.setLoading(val) }, { immediate: true })
@@ -415,11 +425,21 @@ const saveInitialConfig = async () => {
     try {
         configObj = JSON.parse(cleanStr)
     } catch (jsonErr) {
-        // 如果標準 JSON 解析失敗，嘗試寬容解析 (針對未加引號的 key)
-        // 注意：這僅是簡單的正則替換，仍建議使用者提供標準 JSON
-        const relaxedJson = cleanStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
-                                    .replace(/'/g, '"')
-        configObj = JSON.parse(relaxedJson)
+        // Advanced Dirty JSON Parser
+        try {
+            // 1. Remove comments
+            let processed = cleanStr.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+            // 2. Add quotes to keys
+            processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+            // 3. Replace single quotes with double quotes
+            processed = processed.replace(/'/g, '"');
+            // 4. Remove trailing commas
+            processed = processed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+            
+            configObj = JSON.parse(processed)
+        } catch (e2) {
+             throw new Error("無法解析設定內容，請確保格式接近 JSON");
+        }
     }
     
     if (!configObj || !configObj.projectId) throw new Error("無效的設定內容，請確認格式為 JSON")
@@ -670,6 +690,7 @@ const deleteItemPermanently = async (id) => {
 
     // Async Background Task
     const performDelete = async () => {
+        isOptimisticUpdateActive.value = true // Block snapshot updates
         try {
             // Firestore delete FIRST to prevent irrecoverable data loss
             await deleteDoc(doc(db.value, "fridge_items", id))
@@ -691,6 +712,10 @@ const deleteItemPermanently = async (id) => {
             store.setItems(originalItems)
             showToast("刪除失敗，已還原")
         } finally {
+            // Delay unblocking to allow Firestore snapshot to settle
+            setTimeout(() => {
+                isOptimisticUpdateActive.value = false
+            }, 500)
             store.endSync()
         }
     }
@@ -724,6 +749,7 @@ const deleteSelectedNoStock = async () => {
     store.startSync()
     
     const performSafeBatchDelete = async () => {
+        isOptimisticUpdateActive.value = true
         try {
              // Firestore Delete FIRST to prevent irrecoverable data loss
              const promises = idsToDelete.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
@@ -749,6 +775,9 @@ const deleteSelectedNoStock = async () => {
             store.setItems(originalItems)
             showToast("刪除失敗，已還原")
         } finally {
+            setTimeout(() => {
+                isOptimisticUpdateActive.value = false
+            }, 500)
             store.endSync()
         }
     }

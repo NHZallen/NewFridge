@@ -119,7 +119,7 @@
                         </div>
                     </div>
                     <div v-else-if="matchedExistingItem" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3 opacity-75">
-                        <img :src="matchedExistingItem.image" class="w-100 rounded" style="max-height: 200px; object-fit: contain; filter: grayscale(50%);">
+                        <img :src="matchedExistingItem.image" class="w-100 rounded" style="max-height: 200px; object-fit: contain; filter: grayscale(50%);" loading="lazy">
                         <div class="mt-2 text-muted fw-bold"><i class="bi bi-link-45deg"></i> 將使用這張舊照片</div>
                     </div>
 

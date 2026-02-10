@@ -12,7 +12,7 @@
       <div class="card-body text-center">
         <div class="mb-4 d-flex justify-content-center">
           <div class="rounded overflow-hidden shadow-sm" style="width: 150px; height: 150px;">
-            <img v-if="item?.image" :src="item.image" style="width: 100%; height: 100%; object-fit: cover;">
+            <img v-if="item?.image" :src="item.image" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
             <div v-else class="w-100 h-100 bg-light d-flex align-items-center justify-content-center">
               <i class="bi bi-image fs-1 text-muted"></i>
             </div>

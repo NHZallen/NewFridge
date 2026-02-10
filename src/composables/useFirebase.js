@@ -18,8 +18,16 @@ export { db, storage, auth, currentUser, isConfigured }
 
 export function useFirebase() {
 
+    let authUnsubscribe = null
+
     const initFirebase = async (config) => {
         try {
+            // Prevent re-initialization leaks
+            if (authUnsubscribe) {
+                authUnsubscribe()
+                authUnsubscribe = null
+            }
+
             if (!appFirebase.value) {
                 console.log("Initializing Firebase with project:", config.projectId)
                 appFirebase.value = initializeApp(config)
@@ -51,7 +59,7 @@ export function useFirebase() {
 
                 try {
                     auth.value = getAuth(appFirebase.value)
-                    onAuthStateChanged(auth.value, (user) => {
+                    authUnsubscribe = onAuthStateChanged(auth.value, (user) => {
                         currentUser.value = user
                     })
                 } catch (authErr) {

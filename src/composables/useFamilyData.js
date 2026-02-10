@@ -176,9 +176,9 @@ export function useFamilyData() {
         setupError,
         isSettingUp,
         initFamilyData,
-        updateFamilyName,
         updateUserName,
-        stopListeners
+        stopListeners,
+        startListeners
     }
 }
 

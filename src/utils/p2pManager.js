@@ -54,8 +54,16 @@ export const p2pManager = {
                 if (onConnect) onConnect()
 
                 conn.on('open', () => {
-                    // Send payload
-                    conn.send(payload)
+                    // Encrypt payload using a simple XOR with the code (Basic obfuscation)
+                    // This prevents casual sniffing of the config in peerjs server logs
+                    const jsonStr = JSON.stringify(payload)
+                    const key = code
+                    let encrypted = ''
+                    for (let i = 0; i < jsonStr.length; i++) {
+                        encrypted += String.fromCharCode(jsonStr.charCodeAt(i) ^ key.charCodeAt(i % key.length))
+                    }
+
+                    conn.send({ data: encrypted, v: 1 }) // Versioned payload
 
                     // Wait a bit to ensure sent before closing usually, 
                     // but for simplicity we rely on peerjs buffering or close after short delay
@@ -115,9 +123,26 @@ export const p2pManager = {
                     if (timeoutId) clearTimeout(timeoutId)
                 })
 
-                connection.on('data', (data) => {
+                connection.on('data', (received) => {
                     console.log('Data received')
-                    resolve(data)
+                    try {
+                        let decryptedData = received
+
+                        // Handle Encrypted Data
+                        if (received.v === 1 && received.data) {
+                            const key = code
+                            let decryptedStr = ''
+                            for (let i = 0; i < received.data.length; i++) {
+                                decryptedStr += String.fromCharCode(received.data.charCodeAt(i) ^ key.charCodeAt(i % key.length))
+                            }
+                            decryptedData = JSON.parse(decryptedStr)
+                        }
+
+                        resolve(decryptedData)
+                    } catch (e) {
+                        console.error("Decryption failed", e)
+                        reject(new Error("資料解密失敗與驗證錯誤"))
+                    }
                     connection.close() // Close connection
                     setTimeout(() => peer.destroy(), 500) // Destroy peer shortly after
                 })

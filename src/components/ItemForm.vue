@@ -510,6 +510,9 @@ export default {
                     const currentTotal = batches.reduce((sum, b) => sum + parseInt(b.quantity || 0), 0);
                     const targetTotal = safeQuantity;
                     const diff = targetTotal - currentTotal;
+                    
+                    // Create set for cleanup - declared in outer scope to be accessible later
+                    const imagesToCleanupSet = new Set();
 
                     if (diff > 0) {
                         // === 增加數量 (Add Quantity) ===
@@ -537,18 +540,17 @@ export default {
                          });
 
                          // Delete images that are truly gone — collect for deferred cleanup
-                         const imagesToCleanup = new Set();
                          potentiallyDeletedImages.forEach(url => {
                              if (!remainingImages.has(url)) {
                                   if (!isReplacingImage) {
-                                       imagesToCleanup.add(url);
+                                       imagesToCleanupSet.add(url);
                                   }
                              }
                          });
                          // Add old replaced images if needed
                          if (isReplacingImage) {
                             oldImagesToDelete.forEach(url => {
-                                if (!remainingImages.has(url)) imagesToCleanup.add(url);
+                                if (!remainingImages.has(url)) imagesToCleanupSet.add(url);
                             });
                          }
 
@@ -584,9 +586,9 @@ export default {
                         console.log("Image Replaced: Cleaning up old images...");
                         await cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
                     }
-                    if (typeof imagesToCleanup !== 'undefined' && imagesToCleanup.size > 0) {
+                    if (typeof imagesToCleanupSet !== 'undefined' && imagesToCleanupSet.size > 0) {
                         console.log("Edit Limit: Cleaning up unused images after DB write...");
-                        await cleanupUnusedImages(imagesToCleanup, []);
+                        await cleanupUnusedImages(imagesToCleanupSet, []);
                     }
 
                 } else {

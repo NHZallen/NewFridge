@@ -328,22 +328,23 @@ const latestLog = computed(() => updateLogs.value.find(l => l.version === latest
 
 // ==================== 方法 ====================
 
+// Scroll Listener
+const onScrollHandler = () => {
+  showScrollTop.value = window.scrollY > 300
+}
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScrollHandler)
+  stopListeners()
+})
+
 // 初始化流程
 onMounted(async () => {
     initSecurity()
+    window.addEventListener('scroll', onScrollHandler)
     loadSettings()
     showUpdateModal()
     
-    // Scroll Listener
-    const handleScroll = () => {
-      showScrollTop.value = window.scrollY > 300
-    }
-    window.addEventListener('scroll', handleScroll)
-    
-    onUnmounted(() => {
-      window.removeEventListener('scroll', handleScroll)
-    })
-
     const config = await checkConfig()
     
     if (config) {

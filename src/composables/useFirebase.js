@@ -33,16 +33,16 @@ export function useFirebase() {
                 db.value = getFirestore(appFirebase.value)
 
                 // Enable Offline Persistence
-                try {
-                    await enableIndexedDbPersistence(db.value)
-                    console.log("Firebase Offline Persistence Enabled")
-                } catch (err) {
-                    if (err.code == 'failed-precondition') {
-                        console.warn("Persistence failed: Multiple tabs open")
-                    } else if (err.code == 'unimplemented') {
-                        console.warn("Persistence not supported by browser")
-                    }
-                }
+                // try {
+                //     await enableIndexedDbPersistence(db.value)
+                //     console.log("Firebase Offline Persistence Enabled")
+                // } catch (err) {
+                //     if (err.code == 'failed-precondition') {
+                //         console.warn("Persistence failed: Multiple tabs open")
+                //     } else if (err.code == 'unimplemented') {
+                //         console.warn("Persistence not supported by browser")
+                //     }
+                // }
 
                 // Initialize Storage only if storageBucket exists
                 if (config.storageBucket) {

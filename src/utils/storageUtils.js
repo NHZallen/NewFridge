@@ -77,7 +77,7 @@ export async function cleanupUnusedImages(oldUrls, keepingUrls) {
 
     if (toDelete.size === 0) return 0;
 
-    console.log(`[Storage Cleanup] Finding unused images... Found ${toDelete.size} to delete.`);
+
 
     const urls = Array.from(toDelete);
     const results = [];
@@ -88,7 +88,7 @@ export async function cleanupUnusedImages(oldUrls, keepingUrls) {
     }
 
     const successCount = results.filter(r => r).length;
-    console.log(`[Storage Cleanup] Deleted ${successCount}/${toDelete.size} images in ${Date.now() - start}ms.`);
+
 
     return successCount;
 }

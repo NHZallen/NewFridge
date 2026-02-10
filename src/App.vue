@@ -191,9 +191,8 @@ import { storeToRefs } from 'pinia'
 
 import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION } from './utils/constants'
-import { getTodayStr, getDays } from './utils/dateUtils'
-import { isNoExpiry } from './utils/itemHelpers'
-import { recalculateItemFromBatches } from './utils/inventoryUtils.js'
+import { getTodayStr } from './utils/dateUtils'
+
 
 
 
@@ -308,8 +307,7 @@ const showScrollTop = ref(false)
 const previewImageUrl = ref(null)
 
 // 篩選
-// const searchText = ref("")
-// const filterZone = ref("all")
+
 
 // 取出物品
 const itemToDelete = ref(null)

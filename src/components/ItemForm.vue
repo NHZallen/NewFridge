@@ -583,11 +583,11 @@ export default {
                     // === POST-UPDATE CLEANUP ===
                     // Image cleanup AFTER successful Firestore write to prevent irrecoverable data loss
                     if (isReplacingImage && oldImagesToDelete.size > 0) {
-                        console.log("Image Replaced: Cleaning up old images...");
+
                         await cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
                     }
                     if (typeof imagesToCleanupSet !== 'undefined' && imagesToCleanupSet.size > 0) {
-                        console.log("Edit Limit: Cleaning up unused images after DB write...");
+
                         await cleanupUnusedImages(imagesToCleanupSet, []);
                     }
 
@@ -633,7 +633,7 @@ export default {
                         
                         // Firestore 成功後才安全刪除舊圖片
                         if (oldImageToDelete) {
-                            console.log("Restock: Deleting old archive image after success:", oldImageToDelete);
+
                             await deleteImage(oldImageToDelete);
                         }
 

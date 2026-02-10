@@ -43,11 +43,11 @@ export const p2pManager = {
             }
 
             peer.on('open', (id) => {
-                console.log('Sender Peer ID:', id)
+
             })
 
             peer.on('connection', (conn) => {
-                console.log('Receiver connected')
+
                 connection = conn
                 if (timeoutId) clearTimeout(timeoutId)
 
@@ -115,16 +115,16 @@ export const p2pManager = {
             }, 10000) // 10s to find the peer is enough
 
             peer.on('open', (id) => {
-                console.log('Receiver Peer ID:', id)
+
                 connection = peer.connect(targetPeerId)
 
                 connection.on('open', () => {
-                    console.log('Connected to sender')
+
                     if (timeoutId) clearTimeout(timeoutId)
                 })
 
                 connection.on('data', (received) => {
-                    console.log('Data received')
+
                     try {
                         let decryptedData = received
 

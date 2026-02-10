@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { initializeApp } from 'firebase/app'
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 
@@ -28,27 +28,17 @@ export function useFirebase() {
             }
 
             if (!appFirebase.value) {
-                console.log("Initializing Firebase with project:", config.projectId)
+
                 appFirebase.value = initializeApp(config)
                 db.value = getFirestore(appFirebase.value)
 
-                // Enable Offline Persistence
-                // try {
-                //     await enableIndexedDbPersistence(db.value)
-                //     console.log("Firebase Offline Persistence Enabled")
-                // } catch (err) {
-                //     if (err.code == 'failed-precondition') {
-                //         console.warn("Persistence failed: Multiple tabs open")
-                //     } else if (err.code == 'unimplemented') {
-                //         console.warn("Persistence not supported by browser")
-                //     }
-                // }
+
 
                 // Initialize Storage only if storageBucket exists
                 if (config.storageBucket) {
                     try {
                         storage.value = getStorage(appFirebase.value)
-                        console.log("Storage initialized")
+
                     } catch (storageErr) {
                         console.error("Storage Init Failed:", storageErr)
                     }

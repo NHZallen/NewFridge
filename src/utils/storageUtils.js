@@ -79,8 +79,13 @@ export async function cleanupUnusedImages(oldUrls, keepingUrls) {
 
     console.log(`[Storage Cleanup] Finding unused images... Found ${toDelete.size} to delete.`);
 
-    const processes = Array.from(toDelete).map(url => deleteImage(url));
-    const results = await Promise.all(processes);
+    const urls = Array.from(toDelete);
+    const results = [];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+        const batch = urls.slice(i, i + BATCH_SIZE).map(url => deleteImage(url));
+        results.push(...await Promise.all(batch));
+    }
 
     const successCount = results.filter(r => r).length;
     console.log(`[Storage Cleanup] Deleted ${successCount}/${toDelete.size} images in ${Date.now() - start}ms.`);

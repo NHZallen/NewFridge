@@ -90,14 +90,14 @@
             <div class="island-controls">
                 <!-- 移除按鈕 -->
                 <button class="island-trash-btn" 
-                        :disabled="localSelectedIds.length === 0"
+                        :disabled="localSelectedIds.length === 0 || !isOnline"
                         @click="handleRemove">
                     <span class="material-symbols-outlined">delete</span>
                 </button>
                 
                 <!-- 放入購物車按鈕 -->
                  <button class="island-action-btn" 
-                        :disabled="localSelectedIds.length === 0"
+                        :disabled="localSelectedIds.length === 0 || !isOnline"
                         @click="handleMoveToCart">
                     放入購物車
                     <span class="material-symbols-outlined">add_shopping_cart</span>
@@ -112,6 +112,7 @@
 import { ref, computed } from 'vue'
 import { getFirestore, doc, updateDoc } from 'firebase/firestore'
 import { useMainStore } from '../stores/index.js'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ToBuyListPage',
@@ -124,6 +125,7 @@ export default {
   emits: ['navigate'],
   setup(props, { emit }) {
     const store = useMainStore()
+    const { isOnline } = storeToRefs(store)
     const localSelectedIds = ref([])
     
     const toBuyList = computed(() => {
@@ -186,6 +188,7 @@ export default {
     return {
       toBuyList,
       localSelectedIds,
+      isOnline,
       getZoneName,
       toggleSelection,
       handleRemove,

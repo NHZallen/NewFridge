@@ -567,13 +567,12 @@ export default {
                             if (b.image) remainingImages.add(b.image);
                         });
 
-                        // Delete images that are truly gone
+                        // Delete images that are truly gone — collect for deferred cleanup
+                        const imagesToCleanup = new Set();
                         imagesPotentiallyDeleted.forEach(url => {
                             if (!remainingImages.has(url)) {
-                                 // If we are in "Replacing Image" mode, we will handle cleanup centrally later using oldImagesToDelete
                                  if (!isReplacingImage) {
-                                      console.log("Edit Limit: Deleting unused image:", url);
-                                      deleteImage(url);
+                                      imagesToCleanup.add(url);
                                  }
                             }
                         });
@@ -604,10 +603,15 @@ export default {
                         updatedAt: new Date()
                     });
                     
-                    // === POST-UPDATE CLEANUP (Replace All) ===
+                    // === POST-UPDATE CLEANUP ===
+                    // Image cleanup AFTER successful Firestore write to prevent irrecoverable data loss
                     if (isReplacingImage && oldImagesToDelete.size > 0) {
                         console.log("Image Replaced: Cleaning up old images...");
                         cleanupUnusedImages(oldImagesToDelete, [finalImageUrl]);
+                    }
+                    if (typeof imagesToCleanup !== 'undefined' && imagesToCleanup.size > 0) {
+                        console.log("Edit Limit: Cleaning up unused images after DB write...");
+                        cleanupUnusedImages(imagesToCleanup, []);
                     }
 
                 } else {

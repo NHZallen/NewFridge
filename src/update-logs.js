@@ -1,6 +1,17 @@
-export const LATEST_VERSION = "1.14.4";
+export const LATEST_VERSION = "1.14.5";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.14.5",
+    date: "2026-02-10",
+    title: "穩定性與效能優化",
+    changes: [
+      "安全性修正：移除 Spoonacular API 金鑰，並清理相關未使用的食譜代碼與組件",
+      "資料完整性：優化刪除流程，確保 Firestore 寫入成功後才清理雲端圖片，防止資料遺失",
+      "效能優化：移除多餘的深層監聽 (Deep Watcher)，並為批次刪圖加入併發限制以減輕系統負擔",
+      "穩定性修正：為設定頁面與離線操作加入更完整的生命週期清理與防護機制"
+    ]
+  },
   {
     version: "1.14.4",
     date: "2026-02-09",

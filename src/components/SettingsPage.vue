@@ -258,7 +258,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { p2pManager } from '../utils/p2pManager'
 
 const props = defineProps({
@@ -277,6 +277,7 @@ const emit = defineEmits([
   'unlink-google',
   'save-family-name',
   'edit-user-name',
+  'show-update-modal',
   'reset-app',
   'update:settings'
 ])
@@ -295,6 +296,15 @@ const syncStatus = ref('waiting')
 const syncMode = ref('full')
 let timerInterval = null
 let senderPeer = null
+
+// P2: 元件卸載時清理 timer 和 P2P 連線
+onUnmounted(() => {
+    if (timerInterval) clearInterval(timerInterval)
+    if (senderPeer && senderPeer.cancel) {
+        senderPeer.cancel()
+        senderPeer = null
+    }
+})
 
 const visibleUpdateLogs = computed(() => {
   if (showAllUpdates.value) return props.updateLogs

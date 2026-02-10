@@ -23,11 +23,9 @@ export function initSecurity() {
         }
     });
 
-    // 3. 防止控制台輸出 (雖然生產環境已經 drop_console，但這是雙重保險)
+    // 3. 防止控制台輸出 (保留 warn/error 供線上除錯與事故追蹤)
     const noop = () => { };
     window.console.log = noop;
-    window.console.warn = noop;
-    window.console.error = noop;
     window.console.info = noop;
 }
 

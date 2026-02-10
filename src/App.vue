@@ -260,7 +260,7 @@ const {
 } = useFamilyData()
 
 // Sync Composables -> Store
-watch(rawItems, (val) => { store.setItems(val) }, { deep: true, immediate: true })
+watch(rawItems, (val) => { store.setItems(val) }, { immediate: true })
 watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { deep: true, immediate: true })
 watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
 watch(rawIsLoading, (val) => { store.setLoading(val) }, { immediate: true })
@@ -671,7 +671,10 @@ const deleteItemPermanently = async (id) => {
     // Async Background Task
     const performDelete = async () => {
         try {
-             // --- Image Cleanup (Delete) ---
+            // Firestore delete FIRST to prevent irrecoverable data loss
+            await deleteDoc(doc(db.value, "fridge_items", id))
+
+            // Image cleanup AFTER successful DB delete
             if (targetItem) {
                 const allImages = new Set();
                 if (targetItem.image) allImages.add(targetItem.image);
@@ -680,12 +683,8 @@ const deleteItemPermanently = async (id) => {
                         if (b.image) allImages.add(b.image);
                     });
                 }
-                // Delete everything
                 await cleanupUnusedImages(allImages, []);
             }
-            // ------------------------------
-
-            await deleteDoc(doc(db.value, "fridge_items", id))
         } catch (e) {
             console.error("Delete Failed", e)
             // Rollback: restore original items
@@ -726,7 +725,11 @@ const deleteSelectedNoStock = async () => {
     
     const performSafeBatchDelete = async () => {
         try {
-             // Image Cleanup - 使用預先快照的物品資料
+             // Firestore Delete FIRST to prevent irrecoverable data loss
+             const promises = idsToDelete.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
+             await Promise.all(promises)
+
+             // Image Cleanup AFTER successful DB delete
              for (const item of itemsToDelete) {
                 if (item) {
                     const allImages = new Set();
@@ -739,10 +742,6 @@ const deleteSelectedNoStock = async () => {
                     await cleanupUnusedImages(allImages, []); 
                 }
              }
-
-             // Firestore Delete
-             const promises = idsToDelete.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
-             await Promise.all(promises)
              
         } catch (e) {
             console.error("Batch Delete Failed", e)

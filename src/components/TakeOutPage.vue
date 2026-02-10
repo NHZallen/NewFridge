@@ -156,12 +156,7 @@ const confirmTakeOut = async () => {
          if (result.image) keepingImages.add(result.image);
          newBatches.forEach(b => { if (b.image) keepingImages.add(b.image); });
          
-         // Add images that were in the deducted batches but strictly NOT in the new result
-         const imagesToCleanup = new Set();
-         potentiallyDeletedImages.forEach(url => {
-             if (!keepingImages.has(url)) imagesToCleanup.add(url);
-         });
-         
+
          imageCleanupTask = () => cleanupUnusedImages(oldImages, keepingImages);
       }
 

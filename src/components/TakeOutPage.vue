@@ -81,7 +81,7 @@ const props = defineProps({
   takeOutAmount: { type: Number, default: 1 }
 })
 
-const emit = defineEmits(['cancel', 'submit-success', 'update:takeOutAmount'])
+const emit = defineEmits(['cancel', 'submit-success', 'update:takeOutAmount', 'show-error'])
 
 const isProcessing = ref(false)
 const isSuccess = ref(false)
@@ -176,7 +176,7 @@ const confirmTakeOut = async () => {
 
   } catch (e) {
       console.error("Take Out Failed", e)
-      alert("取出失敗，請檢查網路")
+      emit('show-error', "取出失敗，請檢查網路")
       isProcessing.value = false
   }
 }

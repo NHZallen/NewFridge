@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.14.9"
+export const APP_VERSION = "1.15.0"
 
 export const ZONE_COLORS = {
     cold: '#3b82f6',

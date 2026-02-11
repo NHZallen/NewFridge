@@ -142,6 +142,7 @@
 import { ref, computed } from 'vue'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../composables/useFirebase'
+import { getZoneName } from '../utils/itemHelpers.js'
 import { useMainStore } from '../stores/index.js'
 import { storeToRefs } from 'pinia'
 
@@ -153,7 +154,7 @@ export default {
       required: true
     }
   },
-  emits: ['navigate', 'start-purchase'],
+  emits: ['navigate', 'start-purchase', 'show-error'],
   setup(props, { emit }) {
     const store = useMainStore()
     const { isOnline } = storeToRefs(store)
@@ -184,14 +185,7 @@ export default {
       }
     })
 
-    const getZoneName = (zone) => {
-      switch(zone) {
-        case 'cold': return '冷藏區'
-        case 'frozen': return '冷凍區'
-        case 'veggie': return '蔬果區'
-        default: return '冰箱庫存'
-      }
-    }
+
 
     const toggleSelection = (id) => {
       const idx = localSelectedIds.value.indexOf(id)
@@ -212,7 +206,7 @@ export default {
         localSelectedIds.value = []
       } catch (e) {
         console.error('Remove failed:', e)
-        alert('操作失敗，請檢查網路連線後再試')
+        emit('show-error', '操作失敗，請檢查網路連線後再試')
       } finally {
         store.endSync()
       }
@@ -228,7 +222,7 @@ export default {
         localSelectedIds.value = []
       } catch (e) {
         console.error('Move back failed:', e)
-        alert('操作失敗，請檢查網路連線後再試')
+        emit('show-error', '操作失敗，請檢查網路連線後再試')
       } finally {
         store.endSync()
       }

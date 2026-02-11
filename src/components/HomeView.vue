@@ -183,7 +183,7 @@
          </div>
          <div v-else class="d-flex gap-2">
              <button class="btn btn-info text-white w-100 rounded-pill py-2 fw-bold" 
-                    :disabled="selectedHomeIds.length === 0"
+                    :disabled="selectedHomeIds.length === 0 || !isOnline"
                     @click="$emit('add-batch-to-buy')">
                 <i class="bi bi-cart-plus me-1"></i> 加入待購買清單 ({{ selectedHomeIds.length }})
             </button>
@@ -300,7 +300,8 @@ onMounted(() => {
   }, options)
 
   // Watch sentinel ref
-  watch(scrollSentinel, (el) => {
+  watch(scrollSentinel, (el, oldEl) => {
+    if (oldEl) observer.unobserve(oldEl)
     if (el) observer.observe(el)
   }, { immediate: true })
 })

@@ -1,6 +1,20 @@
-export const LATEST_VERSION = "1.14.9";
+export const LATEST_VERSION = "1.15.0";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.15.0",
+    date: "2026-02-11",
+    title: "穩定性修復與程式碼品質提升",
+    changes: [
+      "修復 Bug：斷線狀態下不再允許加入待購買清單，避免資料不一致",
+      "修復 Bug：P2P 同步功能修正方法名稱錯誤，裝置同步功能恢復正常",
+      "修復 Bug：待購買清單與購物車頁面改用正確的 Firestore 初始化方式",
+      "修復 Bug：修正物品編輯頁面的條件判斷邏輯錯誤",
+      "穩定性：修正 Firebase Auth 監聽器的清理機制，防止記憶體洩漏",
+      "優化：統一重複的區域名稱函數，改善程式碼維護性",
+      "優化：以 Toast 通知取代多處 alert() 彈窗，提升操作體驗"
+    ]
+  },
   {
     version: "1.14.9",
     date: "2026-02-10",

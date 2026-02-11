@@ -127,7 +127,7 @@
                     <small class="text-muted d-block mt-2 text-center" v-if="isCompressing">正在處理圖片...</small>
                 </div>
 
-                <div v-if="formItem.quantity != 0 || formItem.quantity === ''">
+                <div v-if="parseInt(formItem.quantity) !== 0 || formItem.quantity === ''">
                     <div class="mb-3">
                         <label class="form-label fw-bold">4. 數量</label>
                         <input type="number" inputmode="numeric" class="form-control form-control-lg" v-model="formItem.quantity" placeholder="1" required>
@@ -223,7 +223,7 @@
                 </button>
 
                 <!-- 0庫存物品的永久刪除按鈕 -->
-                <button v-if="mode==='edit' && formItem.quantity == 0 && formItem.quantity !== ''" 
+                <button v-if="mode==='edit' && parseInt(formItem.quantity) === 0 && formItem.quantity !== ''" 
                         type="button" 
                         class="btn btn-outline-danger w-100 mt-3 rounded-pill"
                         @click="handleDelete">
@@ -244,6 +244,7 @@ import { addDaysToDate } from '../utils/dateUtils.js'
 import { recalculateItemFromBatches, deductFromBatches } from '../utils/inventoryUtils.js'
 import { uploadImage, deleteImage, cleanupUnusedImages } from '../utils/storageUtils.js'
 import { useMainStore } from '../stores/index.js'
+import { getZoneName } from '../utils/itemHelpers.js'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -255,7 +256,7 @@ export default {
     familySettings: { type: Object, required: true },
     pendingPurchaseOriginalId: { type: String, default: null }
   },
-  emits: ['cancel', 'submit-success', 'delete-item', 'update-pending-id'],
+  emits: ['cancel', 'submit-success', 'delete-item', 'update-pending-id', 'show-error'],
   setup(props, { emit }) {
     const store = useMainStore()
     const { isOnline } = storeToRefs(store)
@@ -313,10 +314,7 @@ export default {
         return props.allItems.find(i => i.name === formItem.value.name && i.zone !== formItem.value.zone)
     })
 
-    const getZoneName = (zone) => {
-        const map = { cold: '冷藏區', frozen: '冷凍區', veggie: '蔬果區' }
-        return map[zone] || zone
-    }
+
 
     // 當發現同名物品時，預設開啟「沿用舊照片」；若消失則關閉
     watch(matchedExistingItem, (newVal) => {
@@ -380,6 +378,7 @@ export default {
     }
 
     const toggleToBuyStatus = () => {
+        if (!isOnline.value) return
         if (formItem.value.shoppingStatus === 'toBuy') {
             formItem.value.shoppingStatus = null
         } else {
@@ -407,7 +406,7 @@ export default {
             formItem.value.image = null 
         } catch (e) {
             console.error(e)
-            alert("圖片處理失敗：" + (e.message || "請嘗試選擇其他圖片或縮小圖片尺寸"));
+            emit('show-error', "圖片處理失敗：" + (e.message || "請嘗試選擇其他圖片或縮小圖片尺寸"));
         } finally {
             isCompressing.value = false;
         }
@@ -422,7 +421,7 @@ export default {
             emit('delete-item', formItem.value.id);
         } catch(e) {
             console.error("Delete error:", e);
-            alert("刪除時發生錯誤，請稍後再試");
+            emit('show-error', "刪除時發生錯誤，請稍後再試");
             isUploading.value = false;
         }
     };
@@ -431,7 +430,7 @@ export default {
         // Validation
         if (!formItem.value.useExistingImage && !pendingImageBlob.value && !formItem.value.image) { 
             // if no new blob AND no existing image string (edit mode initial)
-            alert("請記得拍照喔！"); return; 
+            emit('show-error', "請記得拍照喔！"); return; 
         }
         
         let safeQuantity = 1;
@@ -444,7 +443,7 @@ export default {
         if (isNaN(safeQuantity) || safeQuantity < 0) safeQuantity = 0;
         
         if (safeQuantity != 0 && !formItem.value.storedDate) { 
-            alert("請填存入日期"); return; 
+            emit('show-error', "請填存入日期"); return; 
         }
 
         isUploading.value = true;
@@ -682,7 +681,7 @@ export default {
 
         } catch (e) {
             console.error("Firebase Error:", e);
-            alert("上傳/更新失敗，請檢查網路");
+            emit('show-error', "上傳/更新失敗，請檢查網路");
         } finally {
             isUploading.value = false;
         }

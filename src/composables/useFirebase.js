@@ -11,22 +11,15 @@ const storage = ref(null)
 const auth = ref(null)
 const currentUser = ref(null)
 const isConfigured = ref(false)
+let authUnsubscribe = null
 
 // Named exports for non-composable usage
 export { db, storage, auth, currentUser, isConfigured }
 
 export function useFirebase() {
 
-    let authUnsubscribe = null
-
     const initFirebase = async (config) => {
         try {
-            // Prevent re-initialization leaks
-            if (authUnsubscribe) {
-                authUnsubscribe()
-                authUnsubscribe = null
-            }
-
             if (!appFirebase.value) {
 
                 appFirebase.value = initializeApp(config)
@@ -48,13 +41,18 @@ export function useFirebase() {
 
                 try {
                     auth.value = getAuth(appFirebase.value)
-                    authUnsubscribe = onAuthStateChanged(auth.value, (user) => {
-                        currentUser.value = user
-                    })
                 } catch (authErr) {
                     console.error("Auth Init Failed:", authErr)
                 }
             }
+
+            // Auth listener — 只在尚未註冊且 auth 可用時綁定
+            if (!authUnsubscribe && auth.value) {
+                authUnsubscribe = onAuthStateChanged(auth.value, (user) => {
+                    currentUser.value = user
+                })
+            }
+
             isConfigured.value = true
             return true
         } catch (e) {

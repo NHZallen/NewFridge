@@ -48,32 +48,37 @@ export const p2pManager = {
 
     /**
      * Sender (Old Device)
+     * @param {string} code - 6-char sync code (from generateSyncCode)
      * @param {Object} data - The data to send (Firebase config, etc.)
-     * @returns {Promise<string>} - The 6-digit code to show on UI
+     * @param {Function} onConnected - Callback when receiver connects
+     * @returns {{ cancel: Function, promise: Promise<void> }}
      */
-    initSender(data) {
-        return new Promise((resolve, reject) => {
-            const code = this.generateSyncCode()
-            const peerId = `${APP_PREFIX}${code}`
-            const peer = new Peer(peerId)
-            let connection = null
+    createSender(code, data, onConnected) {
+        const peerId = `${APP_PREFIX}${code}`
+        const peer = new Peer(peerId)
+        let connection = null
+        let timeoutId = null
+        let rejectPromise = null
 
-            const timeoutId = setTimeout(() => {
+        const cleanup = () => {
+            if (timeoutId) clearTimeout(timeoutId)
+            if (connection) connection.close()
+            peer.destroy()
+        }
+
+        const promise = new Promise((resolve, reject) => {
+            rejectPromise = reject
+
+            // 60 秒 timeout — 避免 caller 忘記 cancel 造成資源殘留
+            timeoutId = setTimeout(() => {
                 if (!connection) {
-                    peer.destroy()
+                    cleanup()
                     reject(new Error('配對逾時 (60秒)'))
                 }
             }, 60000)
 
-            let cancelFunc = () => {
-                if (timeoutId) clearTimeout(timeoutId)
-                if (connection) connection.close()
-                peer.destroy()
-            }
-
-            peer.on('open', (id) => {
-                console.log('Sender ID:', id)
-                resolve({ code, cancel: cancelFunc })
+            peer.on('open', () => {
+                // Peer ready, waiting for receiver...
             })
 
             peer.on('connection', (conn) => {
@@ -81,6 +86,7 @@ export const p2pManager = {
                 connection = conn
 
                 conn.on('open', async () => {
+                    if (onConnected) onConnected()
                     try {
                         const encrypted = await encryptData(data, code)
                         conn.send(encrypted)
@@ -92,16 +98,24 @@ export const p2pManager = {
                     setTimeout(() => {
                         conn.close()
                         peer.destroy()
+                        resolve()
                     }, 1000)
                 })
             })
 
             peer.on('error', (err) => {
                 console.error('Sender Peer Error:', err)
-                if (timeoutId) clearTimeout(timeoutId)
+                cleanup()
                 reject(err)
             })
         })
+
+        const cancel = () => {
+            cleanup()
+            if (rejectPromise) rejectPromise(new Error('cancelled'))
+        }
+
+        return { cancel, promise }
     },
 
     /**

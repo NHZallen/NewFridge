@@ -75,6 +75,7 @@
         @submit-success="goHome"
         @delete-item="deleteItemPermanently"
         @update-pending-id="(val) => pendingPurchaseOriginalId = val"
+        @show-error="showToast($event)"
       />
       
       <!-- TO BUY LIST PAGE -->
@@ -82,6 +83,7 @@
         v-if="!isLoading && currentPage==='to-buy-list'"
         :items="items"
         @navigate="handleNavigateFromToBuyList"
+        @show-error="showToast($event)"
       />
 
       <!-- SHOPPING CART PAGE -->
@@ -90,6 +92,7 @@
         :items="items"
         @navigate="handleNavigateFromCart"
         @start-purchase="startPurchase"
+        @show-error="showToast($event)"
       />
 
       <!-- TAKE OUT PAGE -->
@@ -100,6 +103,7 @@
         v-model:takeOutAmount="takeOutAmount"
         @cancel="goHome"
         @submit-success="goHome"
+        @show-error="showToast($event)"
       />
 
       <!-- SETTINGS PAGE -->
@@ -120,6 +124,7 @@
         @show-update-modal="showUpdateModal(true)"
         @reset-app="resetApp"
         @update:settings="handleSettingsChange"
+        @show-error="showToast($event)"
       />
 
       <!-- UPDATE INFO PAGE -->
@@ -351,6 +356,7 @@ const onScrollHandler = () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onScrollHandler)
   stopListeners()
+  store.cleanupNetworkListeners()
 })
 
 // 初始化流程
@@ -491,19 +497,19 @@ const saveInitialConfig = async () => {
 const linkGoogleAccount = async () => {
     const res = await firebaseLinkGoogle()
     if (res.success) showToast("綁定成功！")
-    else alert("綁定失敗：" + res.error)
+    else showToast("綁定失敗：" + res.error)
 }
 
 const unlinkGoogleAccount = async () => {
     const res = await firebaseUnlinkGoogle()
     if (res.success) showToast("已解除綁定")
-    else alert("解除綁定失敗")
+    else showToast("解除綁定失敗")
 }
 
 // Rename Wrappers
 const saveFamilyName = async (newName) => {
     const success = await updateFamilyName(newName)
-    if (!success) alert("更新失敗")
+    if (!success) showToast("更新失敗")
 }
 
 const startEditUserName = (name) => {
@@ -848,7 +854,7 @@ const addBatchToBuy = async () => {
         await Promise.all(promises)
       } catch (e) {
           console.error("Batch Update Failed", e)
-          alert("更新失敗，正在還原狀態...")
+          showToast("更新失敗，正在還原狀態...")
           
           // Rollback
           originalStatuses.forEach(({ id, status }) => {

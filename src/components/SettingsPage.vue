@@ -279,7 +279,8 @@ const emit = defineEmits([
   'edit-user-name',
   'show-update-modal',
   'reset-app',
-  'update:settings'
+  'update:settings',
+  'show-error'
 ])
 
 // 內部狀態
@@ -337,7 +338,7 @@ const startSync = async (mode) => {
    // Prepare Payload
    const configStr = localStorage.getItem("fridge_firebase_config")
    if (!configStr) {
-       alert("無法讀取設定，請重新登入")
+       emit('show-error', "無法讀取設定，請重新登入")
        isSyncActive.value = false
        return
    }
@@ -346,7 +347,7 @@ const startSync = async (mode) => {
    try {
      config = JSON.parse(configStr)
    } catch(e) {
-     alert("設定資料損毀")
+     emit('show-error', "設定資料損毀")
      isSyncActive.value = false
      return
    }

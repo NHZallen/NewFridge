@@ -282,14 +282,38 @@ const {
   startListeners // Exposed for manual control
 } = useFamilyData()
 
-// Sync Control Flag
-const isOptimisticUpdateActive = ref(false)
+// Sync Control: 避免 optimistic UI 與 Firestore snapshot 競態
+const optimisticUpdateCount = ref(0)
+let queuedRawItems = null
+
+const beginOptimisticUpdate = () => {
+  optimisticUpdateCount.value++
+}
+
+const endOptimisticUpdate = () => {
+  if (optimisticUpdateCount.value > 0) {
+    optimisticUpdateCount.value--
+  }
+
+  if (optimisticUpdateCount.value === 0) {
+    if (queuedRawItems) {
+      store.setItems(queuedRawItems)
+      queuedRawItems = null
+    } else {
+      store.setItems(rawItems.value)
+    }
+  }
+}
+
+const isOptimisticUpdateActive = computed(() => optimisticUpdateCount.value > 0)
 
 // Sync Composables -> Store
 watch(rawItems, (val) => { 
-    if (!isOptimisticUpdateActive.value) {
-        store.setItems(val) 
+    if (isOptimisticUpdateActive.value) {
+        queuedRawItems = val
+        return
     }
+    store.setItems(val)
 }, { immediate: true })
 watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { immediate: true })
 watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
@@ -707,26 +731,23 @@ const goToTakeOutPage = (item) => {
 const deleteItemPermanently = async (id) => {
   if(confirm("確定要永久刪除此物品嗎？此操作無法復原。")) {
     
-    // 1. Snapshot State for rollback
-    const targetItem = items.value.find(i => i.id === id)
-    if (!targetItem) return
-    const originalItems = JSON.parse(JSON.stringify(items.value))
+    // 1. 保留回滾需要的最小資料
+    const targetIndex = items.value.findIndex(i => i.id === id)
+    if (targetIndex === -1) return
+    const targetItem = items.value[targetIndex]
 
     // Local Optimistic Update
-    const idx = items.value.findIndex(i => i.id === id)
-    if (idx > -1) {
-       items.value.splice(idx, 1)
-    }
+    items.value.splice(targetIndex, 1)
     
     // Immediate Navigation
     if(currentPage.value === 'edit') goHome()
 
     // Start Sync
     store.startSync()
+    beginOptimisticUpdate()
 
     // Async Background Task
     const performDelete = async () => {
-        isOptimisticUpdateActive.value = true // Block snapshot updates
         try {
             // Firestore delete FIRST to prevent irrecoverable data loss
             await deleteDoc(doc(db.value, "fridge_items", id))
@@ -744,14 +765,15 @@ const deleteItemPermanently = async (id) => {
             }
         } catch (e) {
             console.error("Delete Failed", e)
-            // Rollback: restore original items
-            store.setItems(originalItems)
+            // Rollback: 還原被刪除的單筆
+            const rollbackIndex = Math.min(targetIndex, items.value.length)
+            const alreadyExists = items.value.some(i => i.id === targetItem.id)
+            if (!alreadyExists) {
+              items.value.splice(rollbackIndex, 0, targetItem)
+            }
             showToast("刪除失敗，已還原")
         } finally {
-            // Delay unblocking to allow Firestore snapshot to settle
-            setTimeout(() => {
-                isOptimisticUpdateActive.value = false
-            }, 500)
+            endOptimisticUpdate()
             store.endSync()
         }
     }
@@ -763,19 +785,19 @@ const deleteItemPermanently = async (id) => {
 const deleteSelectedNoStock = async () => {
   if(confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
     
-    // Snapshot for rollback
-    const originalItems = JSON.parse(JSON.stringify(items.value))
     const idsToDelete = [...selectedHomeIds.value]
+    const idsSet = new Set(idsToDelete)
     
-    // CRITICAL: 在樂觀刪除前先深拷貝物品資料，用於後續圖片清理
-    const itemsToDelete = items.value
-      .filter(i => idsToDelete.includes(i.id))
-      .map(i => JSON.parse(JSON.stringify(i)))
+    // 保存刪除項目的原始索引，供 rollback 使用
+    const removedEntries = []
     
     // Local Optimistic Update
-    idsToDelete.forEach(id => {
-        const idx = items.value.findIndex(i => i.id === id)
-        if (idx > -1) items.value.splice(idx, 1)
+    items.value = items.value.filter((item, index) => {
+      if (idsSet.has(item.id)) {
+        removedEntries.push({ index, item })
+        return false
+      }
+      return true
     })
     
     // Clear selection UI immediately
@@ -783,16 +805,16 @@ const deleteSelectedNoStock = async () => {
     isSelectionMode.value = false
 
     store.startSync()
+    beginOptimisticUpdate()
     
     const performSafeBatchDelete = async () => {
-        isOptimisticUpdateActive.value = true
         try {
              // Firestore Delete FIRST to prevent irrecoverable data loss
              const promises = idsToDelete.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
              await Promise.all(promises)
 
              // Image Cleanup AFTER successful DB delete
-             for (const item of itemsToDelete) {
+             for (const { item } of removedEntries) {
                 if (item) {
                     const allImages = new Set();
                     if (item.image) allImages.add(item.image);
@@ -807,13 +829,20 @@ const deleteSelectedNoStock = async () => {
              
         } catch (e) {
             console.error("Batch Delete Failed", e)
-            // Rollback: restore original items
-            store.setItems(originalItems)
+            // Rollback: 依原索引還原
+            const rollbackItems = [...items.value]
+            removedEntries
+              .sort((a, b) => a.index - b.index)
+              .forEach(({ index, item }) => {
+                const rollbackIndex = Math.min(Math.max(index, 0), rollbackItems.length)
+                if (!rollbackItems.some(i => i.id === item.id)) {
+                  rollbackItems.splice(rollbackIndex, 0, item)
+                }
+              })
+            store.setItems(rollbackItems)
             showToast("刪除失敗，已還原")
         } finally {
-            setTimeout(() => {
-                isOptimisticUpdateActive.value = false
-            }, 500)
+            endOptimisticUpdate()
             store.endSync()
         }
     }

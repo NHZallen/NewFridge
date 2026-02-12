@@ -3,7 +3,7 @@
     <!-- 頂部列 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-light border rounded-pill" @click="$emit('toggle-sidebar')" aria-controls="sidebar">
+        <button class="btn btn-light border rounded-pill" @click="$emit('toggle-sidebar')" aria-controls="sidebar" aria-label="開啟功能選單">
           <i class="bi bi-list"></i>
         </button>
         <div class="d-flex flex-column">
@@ -23,7 +23,10 @@
       </div>
       
       <!-- 管理模式按鈕 -->
-      <button class="btn btn-outline-dark btn-sm rounded-pill px-3" @click="$emit('update:isSelectionMode', !isSelectionMode)">
+      <button class="btn btn-outline-dark btn-sm rounded-pill px-3"
+              :aria-pressed="isSelectionMode"
+              aria-label="切換管理模式"
+              @click="$emit('update:isSelectionMode', !isSelectionMode)">
         {{ isSelectionMode ? '取消' : '管理' }}
       </button>
     </div>
@@ -34,9 +37,11 @@
       <input type="text" 
              class="form-control border-start-0 py-2" 
              placeholder="搜尋物品..." 
+             aria-label="搜尋物品"
              :value="searchText"
              @input="$emit('update:searchText', $event.target.value)">
       <select class="form-select border-start-0 bg-light" 
+              aria-label="篩選冰箱區域"
               :value="filterZone"
               @change="$emit('update:filterZone', $event.target.value)"
               style="max-width: 110px;">
@@ -45,7 +50,7 @@
         <option value="frozen">冷凍區</option>
         <option value="veggie">蔬果區</option>
       </select>
-      <button v-if="searchText" class="btn btn-light border" @click="$emit('update:searchText', '')">清除</button>
+      <button v-if="searchText" class="btn btn-light border" aria-label="清除搜尋文字" @click="$emit('update:searchText', '')">清除</button>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
@@ -63,10 +68,15 @@
       >
         <div class="card item-card h-100" 
              :class="getAlertClass(item)"
+             :role="isSelectionMode ? 'button' : undefined"
+             :tabindex="isSelectionMode ? 0 : undefined"
+             :aria-label="isSelectionMode ? `${item.name}，${selectedHomeIds.includes(item.id) ? '已選取' : '未選取'}` : undefined"
              @touchstart="handleTouchStart(item)"
              @touchend="handleTouchEnd"
              @touchmove="handleTouchMove"
              @click="handleCardClick(item)"
+             @keydown.enter.prevent="isSelectionMode && handleCardClick(item)"
+             @keydown.space.prevent="isSelectionMode && handleCardClick(item)"
              @contextmenu.prevent="$emit('edit', item)">
             
             <!-- 多選模式勾選遮罩 -->
@@ -81,9 +91,15 @@
                 </template>
             </div>
 
-            <div class="item-img-box" @click.stop="!isSelectionMode && $emit('open-preview', item.image)">
-                <img v-if="item.image" :src="item.image" class="item-img" loading="lazy">
-                <div v-else class="text-muted"><i class="bi bi-image fs-1"></i></div>
+            <div class="item-img-box"
+                 :role="!isSelectionMode && item.image ? 'button' : undefined"
+                 :tabindex="!isSelectionMode && item.image ? 0 : undefined"
+                 :aria-label="!isSelectionMode && item.image ? `預覽 ${item.name} 的照片` : undefined"
+                 @click.stop="!isSelectionMode && $emit('open-preview', item.image)"
+                 @keydown.enter.stop.prevent="!isSelectionMode && item.image && $emit('open-preview', item.image)"
+                 @keydown.space.stop.prevent="!isSelectionMode && item.image && $emit('open-preview', item.image)">
+                <img v-if="item.image" :src="item.image" class="item-img" :alt="`${item.name} 的照片`" loading="lazy">
+                <div v-else class="text-muted" role="img" :aria-label="`${item.name}（無照片）`"><i class="bi bi-image fs-1"></i></div>
                 <div class="zone-bar" :style="{ backgroundColor: getZoneColor(item.zone) }"></div>
                 
                 <!-- 狀態懸浮標籤 (方案一) -->
@@ -117,10 +133,10 @@
                     </div>
                     <div v-if="isNoExpiry(item)" class="badge bg-light text-secondary border w-100 mb-2">無期限</div>
                     <template v-else>
-                        <div v-if="getDays(item.expiryDate) <= 0" class="badge bg-danger w-100 mb-2">
-                            {{ getDays(item.expiryDate) === 0 ? '今天到期' : `已過期 (${item.expiryDate})` }}
+                        <div v-if="getItemDaysToExpiry(item.id) <= 0" class="badge bg-danger w-100 mb-2">
+                            {{ getItemDaysToExpiry(item.id) === 0 ? '今天到期' : `已過期 (${item.expiryDate})` }}
                         </div>
-                        <div v-else-if="getDays(item.expiryDate) <= 7" class="badge bg-warning text-dark w-100 mb-2">剩 {{ getDays(item.expiryDate) }} 天</div>
+                        <div v-else-if="getItemDaysToExpiry(item.id) <= 7" class="badge bg-warning text-dark w-100 mb-2">剩 {{ getItemDaysToExpiry(item.id) }} 天</div>
                         <div v-else class="badge bg-light text-secondary border w-100 mb-2">{{ item.expiryDate }}</div>
                     </template>
                 </div>
@@ -129,6 +145,7 @@
                         class="btn btn-sm mt-auto w-100 rounded-pill"
                         :class="item.quantity > 0 ? 'btn-outline-danger' : 'btn-outline-secondary'"
                         :disabled="item.quantity > 0 && !isOnline"
+                        :aria-label="item.quantity > 0 ? `取出 ${item.name}` : `查看 ${item.name} 詳情`"
                         @click.stop="item.quantity > 0 ? $emit('take-out', item) : $emit('edit', item)">
                     {{ item.quantity > 0 ? '取出 / 吃掉' : '查看詳情' }}
                 </button>
@@ -138,7 +155,9 @@
       
       <!-- Infinite Scroll Sentinel -->
       <div v-if="homeVisibleCount < filteredItems.length" ref="scrollSentinel" class="col-12 text-center py-4">
-        <div class="spinner-border text-muted spinner-border-sm" role="status"></div>
+        <div class="spinner-border text-muted spinner-border-sm" role="status">
+          <span class="visually-hidden">載入更多物品中</span>
+        </div>
       </div>
     </div>
 
@@ -148,7 +167,7 @@
     </div>
 
     <!-- 回到頂部按鈕 -->
-    <button v-if="showScrollTop" class="scroll-top-btn" @click="$emit('scroll-to-top')">
+    <button v-if="showScrollTop" class="scroll-top-btn" @click="$emit('scroll-to-top')" aria-label="回到頁面頂部">
       <i class="bi bi-arrow-up"></i>
     </button>
 
@@ -157,13 +176,16 @@
             class="fab-btn" 
             :class="{ 'opacity-50': !isOnline }"
             :disabled="!isOnline"
+            aria-label="新增物品"
             @click="$emit('add-page')">
       <i class="bi bi-plus-lg"></i>
     </button>
 
     <!-- Sync Indicator Floating (Optional, if header one is not enough) -->
     <div v-if="isSyncing" class="position-fixed bottom-0 end-0 mb-5 me-3 p-2 bg-white rounded-pill shadow-sm border d-flex align-items-center" style="z-index: 1060; transform: translateY(-70px);">
-        <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+        <div class="spinner-border text-primary spinner-border-sm me-2" role="status">
+          <span class="visually-hidden">雲端同步中</span>
+        </div>
         <small class="fw-bold text-primary">雲端同步中...</small>
     </div>
     
@@ -172,11 +194,13 @@
          <div v-if="filterZone === 'nostock'" class="d-flex gap-2">
             <button class="btn btn-outline-danger w-50 rounded-pill py-2" 
                     :disabled="selectedHomeIds.length === 0 || !isOnline"
+                    aria-label="永久刪除選取物品"
                     @click="$emit('delete-selected')">
                 <i class="bi bi-trash me-1"></i> 永久刪除
             </button>
              <button class="btn btn-info text-white w-50 rounded-pill py-2 fw-bold" 
                     :disabled="selectedHomeIds.length === 0 || !isOnline"
+                    aria-label="將選取物品加入待買清單"
                     @click="$emit('add-batch-to-buy')">
                 <i class="bi bi-cart-plus me-1"></i> 加入待買
             </button>
@@ -184,6 +208,7 @@
          <div v-else class="d-flex gap-2">
              <button class="btn btn-info text-white w-100 rounded-pill py-2 fw-bold" 
                     :disabled="selectedHomeIds.length === 0 || !isOnline"
+                    aria-label="將選取物品加入待購買清單"
                     @click="$emit('add-batch-to-buy')">
                 <i class="bi bi-cart-plus me-1"></i> 加入待購買清單 ({{ selectedHomeIds.length }})
             </button>
@@ -274,6 +299,17 @@ let observer = null
 const visibleItems = computed(() => {
   return props.filteredItems.slice(0, homeVisibleCount.value)
 })
+
+const visibleItemDaysMap = computed(() => {
+  const daysMap = new Map()
+  visibleItems.value.forEach((item) => {
+    const rawDays = getDays(item.expiryDate)
+    daysMap.set(item.id, Number.isFinite(rawDays) ? rawDays : 9999)
+  })
+  return daysMap
+})
+
+const getItemDaysToExpiry = (itemId) => visibleItemDaysMap.value.get(itemId) ?? 9999
 
 // Reset visible count ONLY when filter keys change, not when data updates
 watch([() => props.searchText, () => props.filterZone], () => {

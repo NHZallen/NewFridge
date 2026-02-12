@@ -1,6 +1,17 @@
-export const LATEST_VERSION = "1.15.0";
+export const LATEST_VERSION = "1.15.1";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.15.1",
+    date: "2026-02-12",
+    title: "效能優化與可及性提升",
+    changes: [
+      "優化：HomeView 重複計算優化，提升列表渲染效能與滑動流暢度",
+      "優化：魔法數字集中管理，統一 UI 動畫與同步延遲常數",
+      "優化：表單驗證補強，新增日期邏輯驗證與數量防呆機制",
+      "優化：全站 ARIA / 可及性補強，提升螢幕閱讀器與鍵盤操作友善度"
+    ]
+  },
   {
     version: "1.15.0",
     date: "2026-02-11",

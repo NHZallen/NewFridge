@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <button class="btn btn-light border rounded-pill" @click="$emit('cancel')">
+        <button class="btn btn-light border rounded-pill" @click="$emit('cancel')" aria-label="返回首頁">
             <i class="bi bi-arrow-left"></i> 取消
         </button>
         <h5 class="fw-bold m-0">{{ mode==='edit' ? '編輯物品' : '放入新物品' }}</h5>
@@ -112,14 +112,14 @@
                     </div>
 
                     <div v-if="!formItem.useExistingImage" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3" style="min-height: 200px;" @click="$refs.fileInput.click()">
-                        <img v-if="displayImage" :src="displayImage" class="w-100 rounded" style="max-height: 300px; object-fit: contain;">
+                        <img v-if="displayImage" :src="displayImage" class="w-100 rounded" :alt="`${formItem.name || '物品'} 照片預覽`" style="max-height: 300px; object-fit: contain;">
                         <div v-else class="text-center text-muted">
                             <i class="bi bi-camera fs-1"></i>
                             <div class="mt-2">點擊選擇相機或相簿</div>
                         </div>
                     </div>
                     <div v-else-if="matchedExistingItem" class="d-flex flex-column align-items-center justify-content-center border rounded bg-light p-3 opacity-75">
-                        <img :src="matchedExistingItem.image" class="w-100 rounded" style="max-height: 200px; object-fit: contain; filter: grayscale(50%);" loading="lazy">
+                        <img :src="matchedExistingItem.image" class="w-100 rounded" :alt="`${matchedExistingItem.name} 的既有照片`" style="max-height: 200px; object-fit: contain; filter: grayscale(50%);" loading="lazy">
                         <div class="mt-2 text-muted fw-bold"><i class="bi bi-link-45deg"></i> 將使用這張舊照片</div>
                     </div>
 
@@ -130,7 +130,7 @@
                 <div v-if="parseInt(formItem.quantity) !== 0 || formItem.quantity === ''">
                     <div class="mb-3">
                         <label class="form-label fw-bold">4. 數量</label>
-                        <input type="number" inputmode="numeric" class="form-control form-control-lg" v-model="formItem.quantity" placeholder="1" required>
+                        <input type="number" inputmode="numeric" class="form-control form-control-lg" v-model="formItem.quantity" placeholder="1" min="0" step="1" required>
                     </div>
 
                     <div class="mb-3">
@@ -141,7 +141,7 @@
                     <div class="mb-4">
                         <div v-if="!formItem.noExpiry">
                             <label class="form-label fw-bold">6. 到期日（可不填）</label>
-                            <input type="date" class="form-control form-control-lg" v-model="formItem.expiryDate">
+                            <input type="date" class="form-control form-control-lg" v-model="formItem.expiryDate" :min="formItem.storedDate || undefined">
                         </div>
 
                         <div class="form-check form-switch mt-3">
@@ -245,6 +245,7 @@ import { recalculateItemFromBatches, deductFromBatches } from '../utils/inventor
 import { uploadImage, deleteImage, cleanupUnusedImages } from '../utils/storageUtils.js'
 import { useMainStore } from '../stores/index.js'
 import { getZoneName } from '../utils/itemHelpers.js'
+import { SUCCESS_ANIMATION_MS } from '../utils/constants.js'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -437,13 +438,37 @@ export default {
         if (formItem.value.quantity === "" || formItem.value.quantity === null) {
             safeQuantity = (props.mode === 'add') ? 1 : 0;
         } else {
-            safeQuantity = parseInt(formItem.value.quantity);
+            safeQuantity = Number(formItem.value.quantity);
         }
 
-        if (isNaN(safeQuantity) || safeQuantity < 0) safeQuantity = 0;
+        if (!Number.isFinite(safeQuantity)) {
+            emit('show-error', "數量格式不正確，請輸入數字");
+            return;
+        }
+
+        if (!Number.isInteger(safeQuantity)) {
+            emit('show-error', "數量需為整數（例如 0、1、2）");
+            return;
+        }
+
+        if (safeQuantity < 0) {
+            emit('show-error', "數量不可小於 0");
+            return;
+        }
         
         if (safeQuantity != 0 && !formItem.value.storedDate) { 
             emit('show-error', "請填存入日期"); return; 
+        }
+
+        if (
+            safeQuantity !== 0 &&
+            !formItem.value.noExpiry &&
+            formItem.value.expiryDate &&
+            formItem.value.storedDate &&
+            formItem.value.expiryDate < formItem.value.storedDate
+        ) {
+            emit('show-error', "到期日不可早於存入日，請重新確認日期");
+            return;
         }
 
         isUploading.value = true;
@@ -662,7 +687,7 @@ export default {
                 isSuccess.value = true;
                 
                 // Wait for animation
-                await new Promise(resolve => setTimeout(resolve, 1200));
+                await new Promise(resolve => setTimeout(resolve, SUCCESS_ANIMATION_MS));
 
                 emit('submit-success');
                 

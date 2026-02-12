@@ -1,19 +1,19 @@
 <template>
   <div class="page-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <button class="btn btn-light border rounded-pill" @click="$emit('cancel')">
+      <button class="btn btn-light border rounded-pill" @click="$emit('cancel')" aria-label="返回首頁">
         <i class="bi bi-arrow-left"></i> 取消
       </button>
       <h5 class="fw-bold m-0">取出物品</h5>
-      <div style="width: 74px;"></div>
+      <div style="width: 74px;" aria-hidden="true"></div>
     </div>
 
     <div class="card section-card">
       <div class="card-body text-center">
         <div class="mb-4 d-flex justify-content-center">
           <div class="rounded overflow-hidden shadow-sm" style="width: 150px; height: 150px;">
-            <img v-if="item?.image" :src="item.image" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
-            <div v-else class="w-100 h-100 bg-light d-flex align-items-center justify-content-center">
+            <img v-if="item?.image" :src="item.image" :alt="`${item?.name || '物品'} 的照片`" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
+            <div v-else class="w-100 h-100 bg-light d-flex align-items-center justify-content-center" role="img" :aria-label="`${item?.name || '物品'}（無照片）`">
               <i class="bi bi-image fs-1 text-muted"></i>
             </div>
           </div>
@@ -23,8 +23,8 @@
         <p class="text-muted mb-4">目前庫存：{{ maxTakeOut }}</p>
 
         <div class="text-start mb-3">
-          <label class="form-label fw-bold">請選擇要取出的數量</label>
-          <select class="form-select form-select-lg" :value="takeOutAmount" @change="$emit('update:takeOutAmount', Number($event.target.value))">
+          <label class="form-label fw-bold" for="takeOutAmountSelect">請選擇要取出的數量</label>
+          <select id="takeOutAmountSelect" class="form-select form-select-lg" :value="takeOutAmount" @change="$emit('update:takeOutAmount', Number($event.target.value))">
             <option v-for="n in maxTakeOut" :key="n" :value="n">{{ n }} {{ n === maxTakeOut ? '(全部取出)' : '' }}</option>
           </select>
         </div>
@@ -70,6 +70,7 @@ import { db } from '../composables/useFirebase'
 import { cleanupUnusedImages } from '../utils/storageUtils.js'
 import { recalculateItemFromBatches, deductFromBatches } from '../utils/inventoryUtils.js'
 import { useMainStore } from '../stores/index.js'
+import { SUCCESS_ANIMATION_MS } from '../utils/constants.js'
 import { storeToRefs } from 'pinia'
 
 const store = useMainStore()
@@ -170,7 +171,7 @@ const confirmTakeOut = async () => {
       isSuccess.value = true
       
       // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 1200))
+      await new Promise(resolve => setTimeout(resolve, SUCCESS_ANIMATION_MS))
       
       emit('submit-success')
 

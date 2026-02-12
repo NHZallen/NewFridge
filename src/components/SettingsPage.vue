@@ -1,11 +1,11 @@
 <template>
   <div class="settings-page page-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <button class="btn btn-light border rounded-pill" @click="$emit('go-home')">
+      <button class="btn btn-light border rounded-pill" @click="$emit('go-home')" aria-label="返回首頁">
         <i class="bi bi-arrow-left"></i> 返回
       </button>
       <h5 class="fw-bold m-0">設定</h5>
-      <div style="width: 74px;"></div>
+      <div style="width: 74px;" aria-hidden="true"></div>
     </div>
 
     <!-- 帳號綁定 Google -->
@@ -25,8 +25,8 @@
         </div>
         <div v-else>
           <div class="d-flex align-items-center gap-3 mb-3">
-            <img v-if="currentUser.photoURL" :src="currentUser.photoURL" class="rounded-circle" style="width: 48px; height: 48px;">
-            <div v-else class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+            <img v-if="currentUser.photoURL" :src="currentUser.photoURL" :alt="`${currentUser.displayName || '使用者'} 的頭像`" class="rounded-circle" style="width: 48px; height: 48px;">
+            <div v-else class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;" role="img" :aria-label="`${currentUser.displayName || currentUser.email || '使用者'} 的預設頭像`">
               {{ currentUser.email?.charAt(0).toUpperCase() }}
             </div>
             <div class="overflow-hidden">
@@ -84,7 +84,7 @@
               </div>
             </div>
 
-            <button v-if="member === currentUserName" class="btn btn-sm btn-light border rounded-pill" @click="$emit('edit-user-name', member)">
+            <button v-if="member === currentUserName" class="btn btn-sm btn-light border rounded-pill" @click="$emit('edit-user-name', member)" :aria-label="`編輯 ${member} 的名稱`">
               <i class="bi bi-pencil"></i>
             </button>
           </div>
@@ -105,6 +105,7 @@
               class="form-check-input" 
               type="checkbox" 
               id="updateNotifySwitch" 
+              aria-label="版本更新通知開關"
               :checked="settings.updateNotifyEnabled"
               @change="$emit('update:settings', { ...settings, updateNotifyEnabled: $event.target.checked })"
             >
@@ -146,7 +147,10 @@
           <div class="accordion-item" v-for="log in visibleUpdateLogs" :key="log.version">
             <h2 class="accordion-header">
               <button class="accordion-button" 
+                      :id="`update-header-${log.version.replace(/\./g, '-')}`"
                       :class="{ collapsed: expandedVersion !== log.version }" 
+                      :aria-expanded="expandedVersion === log.version"
+                      :aria-controls="`update-panel-${log.version.replace(/\./g, '-')}`"
                       type="button" 
                       @click="expandedVersion = expandedVersion === log.version ? null : log.version">
                 <div class="d-flex flex-column">
@@ -155,7 +159,11 @@
                 </div>
               </button>
             </h2>
-            <div class="accordion-collapse" :class="{ show: expandedVersion === log.version, collapse: expandedVersion !== log.version }">
+            <div class="accordion-collapse"
+                 :id="`update-panel-${log.version.replace(/\./g, '-')}`"
+                 role="region"
+                 :aria-labelledby="`update-header-${log.version.replace(/\./g, '-')}`"
+                 :class="{ show: expandedVersion === log.version, collapse: expandedVersion !== log.version }">
               <div class="accordion-body">
                 <ul class="mb-0">
                   <li v-for="c in log.changes" :key="c">{{ c }}</li>
@@ -200,16 +208,16 @@
     </div>
 
     <!-- 同步 Modal (簡易覆蓋層) -->
-    <div v-if="isSyncActive" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 2000;">
+    <div v-if="isSyncActive" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 2000;" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
       <div class="card shadow rounded-4 text-center p-4" style="width: 90%; max-width: 350px;">
         
         <div class="mb-3">
           <i class="bi bi-phone-flip fs-1 text-primary"></i>
         </div>
 
-        <h4 class="fw-bold mb-3">{{ syncMode === 'full' ? '跨裝置同步' : '分享家庭設定' }}</h4>
+        <h4 id="syncModalTitle" class="fw-bold mb-3">{{ syncMode === 'full' ? '跨裝置同步' : '分享家庭設定' }}</h4>
 
-        <div v-if="syncStatus === 'waiting'">
+        <div v-if="syncStatus === 'waiting'" aria-live="polite">
           <p class="text-muted mb-2">請在新裝置輸入以下代碼：</p>
           <div class="display-4 fw-bold letter-spacing-2 mb-3 font-monospace text-primary bg-light rounded py-2">{{ syncCode }}</div>
           
@@ -260,6 +268,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import { p2pManager } from '../utils/p2pManager'
+import { SYNC_TIMER_TICK_MS, SYNC_MODAL_AUTO_CLOSE_MS } from '../utils/constants.js'
 
 const props = defineProps({
   familySettings: { type: Object, required: true },
@@ -367,7 +376,7 @@ const startSync = async (mode) => {
           syncStatus.value = 'timeout'
           if(senderPeer && senderPeer.cancel) senderPeer.cancel()
        }
-   }, 1000)
+   }, SYNC_TIMER_TICK_MS)
 
    // P2P
    try {
@@ -384,7 +393,7 @@ const startSync = async (mode) => {
        syncStatus.value = 'done'
        setTimeout(() => {
            if(isSyncActive.value && syncStatus.value === 'done') closeSyncModal()
-       }, 2000)
+       }, SYNC_MODAL_AUTO_CLOSE_MS)
        
    } catch (err) {
        console.error(err)

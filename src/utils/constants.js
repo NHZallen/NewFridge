@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.15.0"
+export const APP_VERSION = "1.15.1"
 
 export const ZONE_COLORS = {
     cold: '#3b82f6',
@@ -25,4 +25,7 @@ export const P2P_DESTROY_DELAY_MS = 500
 // UI 動畫延遲（毫秒）
 export const SUCCESS_ANIMATION_MS = 1200
 export const OPTIMISTIC_SETTLE_MS = 500
+export const SYNC_TIMER_TICK_MS = 1000
+export const SYNC_MODAL_AUTO_CLOSE_MS = 2000
+
 

@@ -2,10 +2,10 @@
   <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel" data-bs-backdrop="true" data-bs-scroll="false">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title fw-bold" id="sidebarLabel"><i class="bi bi-snow2 text-primary"></i> 功能選單</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="關閉功能選單"></button>
     </div>
 
-    <div class="offcanvas-body d-flex flex-column">
+    <div class="offcanvas-body d-flex flex-column" role="navigation" aria-label="功能選單項目">
       <div class="sidebar-user-block">
         <div class="text-muted small">目前使用者</div>
         <div class="fw-bold fs-5">{{ currentUserName }}</div>

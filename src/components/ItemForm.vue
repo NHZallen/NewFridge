@@ -387,6 +387,55 @@ export default {
         }
     }
 
+    const resolveSubmitErrorMessage = (error) => {
+        const code = (error?.code || '').toString().toLowerCase()
+        const message = (error?.message || '').toString().toLowerCase()
+        const raw = `${code} ${message}`
+
+        // 權限 / 規則相關
+        if (
+            raw.includes('permission-denied') ||
+            raw.includes('storage/unauthorized') ||
+            raw.includes('unauthorized') ||
+            raw.includes('forbidden')
+        ) {
+            return "上傳/更新失敗：權限不足，請重新登入或檢查 Firebase 規則"
+        }
+
+        // 登入狀態失效
+        if (
+            raw.includes('unauthenticated') ||
+            raw.includes('auth/user-token-expired') ||
+            raw.includes('auth/id-token-expired')
+        ) {
+            return "上傳/更新失敗：登入狀態已過期，請重新登入"
+        }
+
+        // 真正的網路/連線問題
+        if (
+            raw.includes('network-request-failed') ||
+            raw.includes('unavailable') ||
+            raw.includes('network') ||
+            raw.includes('timeout')
+        ) {
+            return "上傳/更新失敗：目前連線不穩，請稍後再試"
+        }
+
+        if (raw.includes('storage/quota-exceeded')) {
+            return "上傳失敗：雲端儲存空間不足"
+        }
+
+        if (raw.includes('storage/retry-limit-exceeded')) {
+            return "上傳失敗：上傳逾時，請稍後重試"
+        }
+
+        if (raw.includes('storage/canceled')) {
+            return "已取消上傳"
+        }
+
+        return "上傳/更新失敗，請稍後再試"
+    }
+
     const processImage = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -706,7 +755,7 @@ export default {
 
         } catch (e) {
             console.error("Firebase Error:", e);
-            emit('show-error', "上傳/更新失敗，請檢查網路");
+            emit('show-error', resolveSubmitErrorMessage(e));
         } finally {
             isUploading.value = false;
         }

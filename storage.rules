@@ -2,8 +2,12 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /fridge_items/{allPaths=**} {
-      // 登入用戶才可讀寫
-      allow read, write: if request.auth != null
+      // 讀取/刪除：只要登入即可（read/delete 時 request.resource 可能為 null）
+      allow read, delete: if request.auth != null;
+
+      // 建立/更新：限制圖片大小與 MIME type
+      allow create, update: if request.auth != null
+        && request.resource != null
         && request.resource.size < 5 * 1024 * 1024  // 限制 5MB
         && request.resource.contentType.matches('image/.*');  // 僅允許圖片
     }

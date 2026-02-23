@@ -488,11 +488,11 @@ export default {
             const ownersFinal = (formItem.value.owners && formItem.value.owners.length > 0) ? formItem.value.owners : ['全家'];
 
             const newBatch = {
-                storedDate: formItem.value.storedDate,
-                expiryDate: expiryDateClean,
-                noExpiry: noExpiryFinal,
-                quantity: safeQuantity,
-                image: finalImageUrl, 
+                storedDate: formItem.value.storedDate || "",
+                expiryDate: expiryDateClean || "",
+                noExpiry: noExpiryFinal || false,
+                quantity: safeQuantity || 0,
+                image: finalImageUrl || null, 
                 addedAt: Date.now()
             };
 
@@ -508,10 +508,10 @@ export default {
                     // Fallback for legacy items without batches
                     if (batches.length === 0 && oldItemRef && parseInt(oldItemRef.quantity) > 0) {
                         batches = [{
-                            storedDate: oldItemRef.storedDate,
-                            expiryDate: oldItemRef.expiryDate,
-                            noExpiry: oldItemRef.noExpiry,
-                            quantity: parseInt(oldItemRef.quantity),
+                            storedDate: oldItemRef.storedDate || "",
+                            expiryDate: oldItemRef.expiryDate || "",
+                            noExpiry: oldItemRef.noExpiry || false,
+                            quantity: parseInt(oldItemRef.quantity) || 0,
                             image: oldItemRef.image || null,
                             addedAt: 0
                         }];
@@ -627,10 +627,10 @@ export default {
                         
                         if (parseInt(targetItem.quantity) > 0) {
                             batches = targetItem.batches ? [...targetItem.batches] : [{
-                                storedDate: targetItem.storedDate,
-                                expiryDate: targetItem.expiryDate,
-                                noExpiry: targetItem.noExpiry,
-                                quantity: parseInt(targetItem.quantity),
+                                storedDate: targetItem.storedDate || "",
+                                expiryDate: targetItem.expiryDate || "",
+                                noExpiry: targetItem.noExpiry || false,
+                                quantity: parseInt(targetItem.quantity) || 0,
                                 image: targetItem.image || null,
                                 addedAt: 0
                             }];

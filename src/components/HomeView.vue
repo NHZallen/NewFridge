@@ -190,28 +190,41 @@
     </div>
     
     <!-- 多選模式的底部操作列 -->
-    <div v-if="isSelectionMode" class="fixed-bottom p-3 bg-white border-top shadow-lg">
-         <div v-if="filterZone === 'nostock'" class="d-flex gap-2">
-            <button class="btn btn-outline-danger w-50 rounded-pill py-2" 
-                    :disabled="selectedHomeIds.length === 0 || !isOnline"
-                    aria-label="永久刪除選取物品"
-                    @click="$emit('delete-selected')">
-                <i class="bi bi-trash me-1"></i> 永久刪除
-            </button>
-             <button class="btn btn-info text-white w-50 rounded-pill py-2 fw-bold" 
-                    :disabled="selectedHomeIds.length === 0 || !isOnline"
-                    aria-label="將選取物品加入待買清單"
-                    @click="$emit('add-batch-to-buy')">
-                <i class="bi bi-cart-plus me-1"></i> 加入待買
-            </button>
-         </div>
-         <div v-else class="d-flex gap-2">
-             <button class="btn btn-info text-white w-100 rounded-pill py-2 fw-bold" 
-                    :disabled="selectedHomeIds.length === 0 || !isOnline"
-                    aria-label="將選取物品加入待購買清單"
-                    @click="$emit('add-batch-to-buy')">
-                <i class="bi bi-cart-plus me-1"></i> 加入待購買清單 ({{ selectedHomeIds.length }})
-            </button>
+    <div class="action-island-container" v-if="isSelectionMode">
+         <div class="action-island">
+            <div class="island-text ms-2" aria-live="polite">
+                <div>已選擇</div>
+                <div class="fs-4">{{ selectedHomeIds.length }} 項</div>
+            </div>
+            
+            <div class="island-controls" v-if="filterZone === 'nostock'">
+                <!-- 移除按鈕 -->
+                <button class="island-trash-btn" 
+                        :disabled="selectedHomeIds.length === 0 || !isOnline"
+                        @click="$emit('delete-selected')"
+                        aria-label="永久刪除選取物品">
+                    <span class="material-symbols-outlined">delete</span>
+                </button>
+                
+                <!-- 加入待買按鈕 -->
+                 <button class="island-action-btn" 
+                        :disabled="selectedHomeIds.length === 0 || !isOnline"
+                        aria-label="將選取物品加入待買清單"
+                        @click="$emit('add-batch-to-buy')">
+                    加入待買
+                    <span class="material-symbols-outlined">add_shopping_cart</span>
+                </button>
+            </div>
+            
+            <div class="island-controls" v-else>
+                 <button class="island-action-btn w-100" 
+                        :disabled="selectedHomeIds.length === 0 || !isOnline"
+                        aria-label="將選取物品加入待購買清單"
+                        @click="$emit('add-batch-to-buy')">
+                    加入待購買清單
+                    <span class="material-symbols-outlined">add_shopping_cart</span>
+                </button>
+            </div>
          </div>
     </div>
   </div>

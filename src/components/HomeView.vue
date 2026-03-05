@@ -31,27 +31,40 @@
       </button>
     </div>
 
-    <!-- 搜尋與篩選 (全區顯示) -->
-    <div class="input-group mb-4 shadow-sm">
-      <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-      <input type="text" 
-             class="form-control border-start-0 py-2" 
-             placeholder="搜尋物品..." 
-             aria-label="搜尋物品"
-             :value="searchText"
-             @input="$emit('update:searchText', $event.target.value)">
-      <select v-if="filterZone !== 'nostock'"
-              class="form-select border-start-0 bg-light" 
-              aria-label="篩選冰箱區域"
-              :value="filterZone"
-              @change="$emit('update:filterZone', $event.target.value)"
-              style="max-width: 110px;">
-        <option value="all">全區</option>
-        <option value="cold">冷藏區</option>
-        <option value="frozen">冷凍區</option>
-        <option value="veggie">蔬果區</option>
-      </select>
-      <button v-if="searchText" class="btn btn-light border" aria-label="清除搜尋文字" @click="$emit('update:searchText', '')">清除</button>
+    <!-- 搜尋與篩選 (全區顯示) - 現代化膠囊設計 -->
+    <div class="modern-search-container mb-4 shadow-sm">
+      <div class="modern-search-bar">
+        <span class="search-icon"><i class="bi bi-search"></i></span>
+        <input type="text" 
+               class="modern-search-input" 
+               placeholder="搜尋物品..." 
+               aria-label="搜尋物品"
+               :value="searchText"
+               @input="$emit('update:searchText', $event.target.value)">
+               
+        <!-- 清除按鈕 -->
+        <button v-if="searchText" 
+                class="modern-clear-btn" 
+                aria-label="清除搜尋文字" 
+                @click="$emit('update:searchText', '')">
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+        
+        <!-- 分隔線 -->
+        <div class="modern-divider" v-if="filterZone !== 'nostock'"></div>
+
+        <!-- 區域篩選 -->
+        <select v-if="filterZone !== 'nostock'"
+                class="modern-filter-select" 
+                aria-label="篩選冰箱區域"
+                :value="filterZone"
+                @change="$emit('update:filterZone', $event.target.value)">
+          <option value="all">全區</option>
+          <option value="cold">冷藏區</option>
+          <option value="frozen">冷凍區</option>
+          <option value="veggie">蔬果區</option>
+        </select>
+      </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
@@ -394,5 +407,88 @@ onUnmounted(() => {
 .status-badge.in-cart {
     background-color: rgba(255, 193, 7, 0.9); /* Bootstrap warning color */
     color: #000;
+}
+
+/* 現代化搜尋欄樣式 */
+.modern-search-container {
+  border-radius: 50rem;
+  background-color: #fff;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.modern-search-container:focus-within {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.modern-search-bar {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  height: 48px;
+}
+
+.search-icon {
+  color: #6c757d;
+  padding: 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.modern-search-input {
+  flex-grow: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0;
+  outline: none;
+  min-width: 0; /* 避免 flex-item 溢出 */
+}
+
+.modern-search-input::placeholder {
+  color: #adb5bd;
+}
+
+.modern-clear-btn {
+  background: transparent;
+  border: none;
+  color: #ced4da;
+  padding: 0 0.5rem;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modern-clear-btn:hover {
+  color: #6c757d;
+}
+
+.modern-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #dee2e6;
+  margin: 0 0.5rem;
+}
+
+.modern-filter-select {
+  border: none;
+  background-color: transparent;
+  padding: 0.5rem 1.5rem 0.5rem 0.5rem;
+  font-weight: 600;
+  color: #495057;
+  cursor: pointer;
+  outline: none;
+  max-width: 110px;
+  
+  /* 自訂箭頭樣式 */
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 16px 12px;
+}
+
+.modern-filter-select:hover {
+  color: #212529;
 }
 </style>

@@ -7,13 +7,17 @@ import * as bootstrap from 'bootstrap'
 export function useBootstrap() {
     // Toast 狀態
     const toastMessage = ref("")
+    const toastType = ref("success")
     const toastEl = ref(null)
 
     /**
      * 顯示 Toast 訊息
      */
-    const showToast = (msg) => {
+    const showToast = (msg, type = 'success') => {
         toastMessage.value = msg
+        const validTypes = ['success', 'warning', 'error']
+        toastType.value = validTypes.includes(type) ? type : 'success'
+
         nextTick(() => {
             if (toastEl.value) {
                 const t = bootstrap.Toast.getOrCreateInstance(toastEl.value)
@@ -102,6 +106,7 @@ export function useBootstrap() {
     return {
         // Toast
         toastMessage,
+        toastType,
         toastEl,
         showToast,
 

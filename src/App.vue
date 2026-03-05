@@ -75,7 +75,7 @@
         @submit-success="goHome"
         @delete-item="deleteItemPermanently"
         @update-pending-id="(val) => pendingPurchaseOriginalId = val"
-        @show-error="showToast($event)"
+        @show-error="showToast($event, 'error')"
       />
       
       <!-- TO BUY LIST PAGE -->
@@ -83,7 +83,7 @@
         v-if="!isLoading && currentPage==='to-buy-list'"
         :items="items"
         @navigate="handleNavigateFromToBuyList"
-        @show-error="showToast($event)"
+        @show-error="showToast($event, 'error')"
       />
 
       <!-- SHOPPING CART PAGE -->
@@ -92,7 +92,7 @@
         :items="items"
         @navigate="handleNavigateFromCart"
         @start-purchase="startPurchase"
-        @show-error="showToast($event)"
+        @show-error="showToast($event, 'error')"
       />
 
       <!-- TAKE OUT PAGE -->
@@ -103,7 +103,7 @@
         v-model:takeOutAmount="takeOutAmount"
         @cancel="goHome"
         @submit-success="goHome"
-        @show-error="showToast($event)"
+        @show-error="showToast($event, 'error')"
       />
 
       <!-- SETTINGS PAGE -->
@@ -124,7 +124,7 @@
         @show-update-modal="showUpdateModal(true)"
         @reset-app="resetApp"
         @update:settings="handleSettingsChange"
-        @show-error="showToast($event)"
+        @show-error="showToast($event, 'error')"
       />
 
       <!-- UPDATE INFO PAGE -->
@@ -173,12 +173,26 @@
 
       <!-- Toast Notification -->
       <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index: 1090">
-        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" ref="toastEl">
+        <div id="liveToast" 
+             class="toast align-items-center border-0 shadow-lg" 
+             :class="{
+               'bg-success text-white': toastType === 'success',
+               'bg-warning text-dark': toastType === 'warning',
+               'bg-danger text-white': toastType === 'error'
+             }"
+             role="alert" aria-live="assertive" aria-atomic="true" ref="toastEl" data-bs-delay="2500">
           <div class="d-flex">
             <div class="toast-body">
-              <i class="bi bi-check-circle-fill me-2"></i>{{ toastMessage }}
+              <i class="bi me-2" :class="{
+                'bi-check-circle-fill': toastType === 'success',
+                'bi-exclamation-triangle-fill': toastType === 'warning',
+                'bi-x-circle-fill': toastType === 'error'
+              }"></i>{{ toastMessage }}
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            <button type="button" 
+                    class="btn-close me-2 m-auto" 
+                    :class="{'btn-close-white': toastType !== 'warning'}"
+                    data-bs-dismiss="toast" aria-label="Close"></button>
           </div>
         </div>
       </div>
@@ -248,6 +262,7 @@ const {
 
 const { 
   toastMessage, 
+  toastType,
   toastEl, 
   showToast, 
   showModal, 
@@ -521,19 +536,19 @@ const saveInitialConfig = async () => {
 const linkGoogleAccount = async () => {
     const res = await firebaseLinkGoogle()
     if (res.success) showToast("綁定成功！")
-    else showToast("綁定失敗：" + res.error)
+    else showToast("綁定失敗：" + res.error, 'error')
 }
 
 const unlinkGoogleAccount = async () => {
     const res = await firebaseUnlinkGoogle()
     if (res.success) showToast("已解除綁定")
-    else showToast("解除綁定失敗")
+    else showToast("解除綁定失敗", 'error')
 }
 
 // Rename Wrappers
 const saveFamilyName = async (newName) => {
     const success = await updateFamilyName(newName)
-    if (!success) showToast("更新失敗")
+    if (!success) showToast("更新失敗", 'error')
 }
 
 const startEditUserName = (name) => {
@@ -771,7 +786,7 @@ const deleteItemPermanently = async (id) => {
             if (!alreadyExists) {
               items.value.splice(rollbackIndex, 0, targetItem)
             }
-            showToast("刪除失敗，已還原")
+            showToast("刪除失敗，已還原", 'error')
         } finally {
             endOptimisticUpdate()
             store.endSync()

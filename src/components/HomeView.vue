@@ -31,8 +31,8 @@
       </button>
     </div>
 
-    <!-- 搜尋與篩選 (非無庫存區顯示) -->
-    <div class="input-group mb-4 shadow-sm" v-if="filterZone !== 'nostock'">
+    <!-- 搜尋與篩選 (全區顯示) -->
+    <div class="input-group mb-4 shadow-sm">
       <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
       <input type="text" 
              class="form-control border-start-0 py-2" 
@@ -40,7 +40,8 @@
              aria-label="搜尋物品"
              :value="searchText"
              @input="$emit('update:searchText', $event.target.value)">
-      <select class="form-select border-start-0 bg-light" 
+      <select v-if="filterZone !== 'nostock'"
+              class="form-select border-start-0 bg-light" 
               aria-label="篩選冰箱區域"
               :value="filterZone"
               @change="$emit('update:filterZone', $event.target.value)"

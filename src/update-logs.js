@@ -1,6 +1,18 @@
-export const LATEST_VERSION = "1.16.0";
+export const LATEST_VERSION = "1.16.1";
 
 export const UPDATE_LOGS = [
+  {
+    version: "1.16.1",
+    date: "2026-03-06",
+    title: "系統優化與技術債清理",
+    changes: [
+      "底層重構：實作成員 UID 識別機制，增進改名與權限管理的穩定度",
+      "安全升級：加強 P2P 同步機制的安全性（8 碼長度、Challenge-Response 認證、過期機制）",
+      "體驗優化：統一刪除確認流程，避免重複彈窗",
+      "系統維護：保留正式環境的錯誤日誌以便問題追蹤",
+      "效能提升：清理多處未使用的冗餘檔案與殘留元件"
+    ]
+  },
   {
     version: "1.16.0",
     date: "2026-03-05",

@@ -1,5 +1,16 @@
 export const APP_VERSION = "1.16.1"
 
+export const APP_PAGES = Object.freeze({
+    HOME: 'home',
+    ADD: 'add',
+    EDIT: 'edit',
+    TO_BUY_LIST: 'to-buy-list',
+    SHOPPING_CART: 'shopping-cart',
+    TAKE_OUT: 'takeout',
+    SETTINGS: 'settings',
+    UPDATE_INFO: 'update-info'
+})
+
 export const ZONE_COLORS = {
     cold: '#3b82f6',
     frozen: '#002266',

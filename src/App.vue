@@ -45,7 +45,7 @@
 
       <!-- HOME PAGE -->
       <HomeView
-        v-else-if="!isLoading && currentPage==='home'"
+        v-else-if="!isLoading && currentPage===pages.HOME"
         :filtered-items="filteredItems"
         v-model:filter-zone="filterZone"
         v-model:search-text="searchText"
@@ -55,7 +55,7 @@
         :show-scroll-top="showScrollTop"
         @edit="goToEditPage"
         @take-out="goToTakeOutPage"
-        @delete-selected="deleteSelectedNoStock"
+        @delete-selected="handleDeleteSelectedNoStock"
         @add-batch-to-buy="addBatchToBuy"
         @add-page="goToAddPage"
         @open-preview="openPreview"
@@ -65,7 +65,7 @@
 
       <!-- ADD / EDIT PAGE -->
       <ItemForm
-        v-if="!isLoading && (currentPage==='add' || currentPage==='edit')"
+        v-if="!isLoading && (currentPage===pages.ADD || currentPage===pages.EDIT)"
         :mode="currentPage"
         :initial-item="newItem"
         :all-items="items"
@@ -73,14 +73,14 @@
         :pending-purchase-original-id="pendingPurchaseOriginalId"
         @cancel="goHome"
         @submit-success="goHome"
-        @delete-item="deleteItemPermanently"
-        @update-pending-id="(val) => pendingPurchaseOriginalId = val"
+        @delete-item="handleDeleteItem"
+        @update-pending-id="updatePendingPurchaseId"
         @show-error="showToast($event, 'error')"
       />
       
       <!-- TO BUY LIST PAGE -->
       <ToBuyListPage
-        v-if="!isLoading && currentPage==='to-buy-list'"
+        v-if="!isLoading && currentPage===pages.TO_BUY_LIST"
         :items="items"
         @navigate="handleNavigateFromToBuyList"
         @show-error="showToast($event, 'error')"
@@ -88,7 +88,7 @@
 
       <!-- SHOPPING CART PAGE -->
       <ShoppingCartPage
-        v-if="!isLoading && currentPage==='shopping-cart'"
+        v-if="!isLoading && currentPage===pages.SHOPPING_CART"
         :items="items"
         @navigate="handleNavigateFromCart"
         @start-purchase="startPurchase"
@@ -97,7 +97,7 @@
 
       <!-- TAKE OUT PAGE -->
       <TakeOutPage
-        v-if="!isLoading && currentPage==='takeout'"
+        v-if="!isLoading && currentPage===pages.TAKE_OUT"
         :item="itemToDelete"
         :maxTakeOut="maxTakeOut"
         v-model:takeOutAmount="takeOutAmount"
@@ -108,7 +108,7 @@
 
       <!-- SETTINGS PAGE -->
       <SettingsPage
-        v-if="!isLoading && currentPage==='settings'"
+        v-if="!isLoading && currentPage===pages.SETTINGS"
         :familySettings="familySettings"
         :currentUserName="currentUserName"
         :currentUser="currentUser"
@@ -129,7 +129,7 @@
 
       <!-- UPDATE INFO PAGE -->
       <UpdateInfoPage
-        v-if="!isLoading && currentPage==='update-info'"
+        v-if="!isLoading && currentPage===pages.UPDATE_INFO"
         :latestLog="latestLog"
         @close="closeUpdatePage"
       />
@@ -203,53 +203,43 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { deleteImage, cleanupUnusedImages } from './utils/storageUtils.js'
+import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { storeToRefs } from 'pinia'
-
-import { LATEST_VERSION, UPDATE_LOGS } from './update-logs.js'
 import { APP_VERSION } from './utils/constants.js'
-import { getTodayStr } from './utils/dateUtils'
-
-
-
-
-// Composables
 import { useBootstrap } from './composables/useBootstrap'
 import { useFirebase } from './composables/useFirebase'
 import { useFamilyData } from './composables/useFamilyData'
+import { useNavigation } from './composables/useNavigation'
+import { useAppSettings } from './composables/useAppSettings'
+import { useInventoryActions } from './composables/useInventoryActions'
 import { useMainStore } from './stores/index.js'
+import { createDraftFromItem, createEmptyItemDraft, createPurchaseDraft } from './utils/itemDrafts'
 
-// Components
 import HomeView from './components/HomeView.vue'
 import SidebarMenu from './components/SidebarMenu.vue'
-
 import LoadingSpinner from './components/LoadingSpinner.vue'
 
-// Helper for Async Components with Loading State
 const asyncOptions = (loader) => ({
   loader,
   loadingComponent: LoadingSpinner,
-  delay: 50, // Show loading spinner if loading takes more than 50ms
-  timeout: 10000 // Timeout after 10000ms
+  delay: 50,
+  timeout: 10000
 })
 
-// Components - Async Imports for Performance
 const SetupScreen = defineAsyncComponent(asyncOptions(() => import('./components/SetupScreen.vue')))
 const ItemForm = defineAsyncComponent(asyncOptions(() => import('./components/ItemForm.vue')))
 const TakeOutPage = defineAsyncComponent(asyncOptions(() => import('./components/TakeOutPage.vue')))
 const UpdateInfoPage = defineAsyncComponent(asyncOptions(() => import('./components/UpdateInfoPage.vue')))
-
 const ToBuyListPage = defineAsyncComponent(asyncOptions(() => import('./components/ToBuyListPage.vue')))
 const ShoppingCartPage = defineAsyncComponent(asyncOptions(() => import('./components/ShoppingCartPage.vue')))
 const SettingsPage = defineAsyncComponent(asyncOptions(() => import('./components/SettingsPage.vue')))
 
-// Init Composables & Store
 const store = useMainStore()
 const {
-  items, 
-  familySettings, 
+  items,
+  familySettings,
+  currentUser,
+  currentUserName,
   isLoading,
   isOnline,
   searchText,
@@ -260,21 +250,19 @@ const {
   cartList
 } = storeToRefs(store)
 
-const { 
-  toastMessage, 
+const {
+  toastMessage,
   toastType,
-  toastEl, 
-  showToast, 
-  showModal, 
-  hideModal, 
-  toggleOffcanvas, 
+  toastEl,
+  showToast,
+  showModal,
+  hideModal,
+  toggleOffcanvas,
   showOffcanvas,
-  cleanupSidebar 
+  cleanupSidebar
 } = useBootstrap()
 
 const {
-  db,
-  currentUser,
   isConfigured,
   initFirebase,
   checkConfig,
@@ -284,163 +272,74 @@ const {
 } = useFirebase()
 
 const {
-  items: rawItems,
-  familySettings: rawFamilySettings,
-  isLoading: rawIsLoading,
-  currentUserName,
   setupError,
   isSettingUp,
   initFamilyData,
   updateFamilyName,
   updateUserName,
-  stopListeners,
-  startListeners // Exposed for manual control
+  stopListeners
 } = useFamilyData()
 
-// Sync Control: 避免 optimistic UI 與 Firestore snapshot 競態
-const optimisticUpdateCount = ref(0)
-let queuedRawItems = null
+const {
+  pages,
+  currentPage,
+  previousPage,
+  savedScrollY,
+  showScrollTop,
+  previewImageUrl,
+  isSelectionMode,
+  selectedHomeIds,
+  toggleSidebar,
+  openPreview,
+  closePreview,
+  scrollToTop,
+  initScrollListener,
+  disposeScrollListener,
+  goHome,
+  goToPage,
+  selectZoneFromSidebar,
+  goSettingsFromSidebar,
+  goPageFromSidebar,
+  handleNavigateFromToBuyList,
+  handleNavigateFromCart
+} = useNavigation({
+  cleanupSidebar,
+  toggleOffcanvas,
+  showOffcanvas
+})
 
-const beginOptimisticUpdate = () => {
-  optimisticUpdateCount.value++
-}
+const {
+  settings,
+  updateLogs,
+  latestVersion,
+  latestLog,
+  loadSettings,
+  handleSettingsChange,
+  showUpdateModal,
+  closeUpdatePage
+} = useAppSettings({
+  currentPage,
+  previousPage,
+  setCurrentPage: store.setCurrentPage,
+  setPreviousPage: store.setPreviousPage
+})
 
-const endOptimisticUpdate = () => {
-  if (optimisticUpdateCount.value > 0) {
-    optimisticUpdateCount.value--
-  }
-
-  if (optimisticUpdateCount.value === 0) {
-    if (queuedRawItems) {
-      store.setItems(queuedRawItems)
-      queuedRawItems = null
-    } else {
-      store.setItems(rawItems.value)
-    }
-  }
-}
-
-const isOptimisticUpdateActive = computed(() => optimisticUpdateCount.value > 0)
-
-// Sync Composables -> Store
-watch(rawItems, (val) => { 
-    if (isOptimisticUpdateActive.value) {
-        queuedRawItems = val
-        return
-    }
-    store.setItems(val)
-}, { immediate: true })
-watch(rawFamilySettings, (val) => { store.setFamilySettings(val) }, { immediate: true })
-watch(currentUser, (val) => { store.setCurrentUser(val) }, { immediate: true })
-watch(rawIsLoading, (val) => { store.setLoading(val) }, { immediate: true })
+const {
+  deleteItemPermanently,
+  deleteSelectedNoStock,
+  addSelectedToBuy
+} = useInventoryActions({ showToast })
 
 const appVersion = APP_VERSION
-
-// ==================== 狀態變數 ====================
-
-// 設定相關
 const inputConfigStr = ref("")
 const inputUserName = ref("")
-
-// UI 狀態
-const currentPage = ref("home")
-const previousPage = ref("home")
-const savedScrollY = ref(0)
-const showScrollTop = ref(false)
-const previewImageUrl = ref(null)
-
-// 篩選
-
-
-// 取出物品
 const itemToDelete = ref(null)
 const takeOutAmount = ref(1)
 const maxTakeOut = ref(1)
-
-// 編輯表單
-const newItem = ref({
-  id: null,
-  name: "",
-  quantity: "1",
-  storedDate: getTodayStr(),
-  expiryDate: "",
-  noExpiry: false,
-  image: null,
-  zone: "cold",
-  owners: ['全家'],
-  useExistingImage: false,
-  shoppingStatus: null
-})
+const newItem = ref(createEmptyItemDraft())
 const pendingPurchaseOriginalId = ref(null)
-
-// 多選模式
-const isSelectionMode = ref(false)
-const selectedHomeIds = ref([])
-
-// 設定頁面
 const editUserNameTemp = ref("")
 const nameEditError = ref("")
-const settings = ref({ updateNotifyEnabled: true })
-const updateLogs = ref(UPDATE_LOGS)
-const latestVersion = ref(LATEST_VERSION)
-const latestLog = computed(() => updateLogs.value.find(l => l.version === latestVersion.value) || updateLogs.value[0] || null)
-
-// ==================== 方法 ====================
-
-// Scroll Listener
-const onScrollHandler = () => {
-  showScrollTop.value = window.scrollY > 300
-}
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', onScrollHandler)
-  stopListeners()
-  store.cleanupNetworkListeners()
-})
-
-// 初始化流程
-onMounted(async () => {
-    window.addEventListener('scroll', onScrollHandler)
-    loadSettings()
-    showUpdateModal()
-    
-    const config = await checkConfig()
-    
-    if (config) {
-        // 已有設定，初始化 Firebase
-        try {
-            await initFirebase(config)
-            
-            // 讀取 User Name
-            const storedUser = localStorage.getItem("fridge_user_name")
-            if (storedUser) {
-                await initFamilyData(storedUser)
-            }
-        } catch (e) {
-             console.error("Init Failed", e)
-             isConfigured.value = false
-        }
-    }
-
-
-
-    // Start background prefetch after initial load
-    prefetchComponents()
-})
-
-// Watch for auth changes to trigger data load
-watch(currentUser, async (user) => {
-    if (user) {
-        // User logged in, try to init data if not already loaded
-        const storedUser = localStorage.getItem("fridge_user_name")
-        if (storedUser) {
-             try {
-                // If initFamilyData was blocked by permissions earlier, retry now
-                await initFamilyData(storedUser)
-             } catch(e) { console.error("Data init retry failed", e) }
-        }
-    }
-}, { immediate: true })
 
 const prefetchComponents = () => {
   const components = [
@@ -454,13 +353,11 @@ const prefetchComponents = () => {
   ]
 
   const startPrefetch = () => {
-    // console.log("Starting background prefetch...")
     components.forEach((importFn) => {
       importFn().catch(() => {})
     })
   }
 
-  // Use requestIdleCallback if available, otherwise fallback to setTimeout
   if (window.requestIdleCallback) {
     window.requestIdleCallback(startPrefetch, { timeout: 5000 })
   } else {
@@ -468,87 +365,86 @@ const prefetchComponents = () => {
   }
 }
 
-// 保存初始設定 (SetupScreen)
 const saveInitialConfig = async () => {
   setupError.value = ""
+
   if (!inputConfigStr.value.trim()) {
     setupError.value = "請輸入設定內容"
     return
   }
-  
+
   if (!inputUserName.value.trim()) {
     setupError.value = "請輸入您的稱呼"
     return
   }
 
   isSettingUp.value = true
-  
+
   try {
     let cleanStr = inputConfigStr.value.trim()
-    // 移除可能的 JS 變數宣告
     cleanStr = cleanStr.replace(/const\s+firebaseConfig\s*=\s*/, '')
-    // 移除結尾的分號
     cleanStr = cleanStr.replace(/;$/, '')
-    
-    // 嘗試尋找並提取 JSON 物件部分 { ... }
+
     const jsonMatch = cleanStr.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
-        cleanStr = jsonMatch[0]
+      cleanStr = jsonMatch[0]
     }
 
     let configObj
     try {
-        configObj = JSON.parse(cleanStr)
-    } catch (jsonErr) {
-        // Advanced Dirty JSON Parser
-        try {
-            // 1. Remove comments
-            let processed = cleanStr.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-            // 2. Add quotes to keys
-            processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-            // 3. Replace single quotes with double quotes
-            processed = processed.replace(/'/g, '"');
-            // 4. Remove trailing commas
-            processed = processed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-            
-            configObj = JSON.parse(processed)
-        } catch (e2) {
-             throw new Error("無法解析設定內容，請確保格式接近 JSON");
-        }
+      configObj = JSON.parse(cleanStr)
+    } catch {
+      try {
+        let processed = cleanStr.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+        processed = processed.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        processed = processed.replace(/'/g, '"')
+        processed = processed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']')
+        configObj = JSON.parse(processed)
+      } catch {
+        throw new Error("無法解析設定內容，請確保格式接近 JSON")
+      }
     }
-    
-    if (!configObj || !configObj.projectId) throw new Error("無效的設定內容，請確認格式為 JSON")
+
+    if (!configObj?.projectId) {
+      throw new Error("無效的設定內容，請確認格式為 JSON")
+    }
 
     await initFirebase(configObj)
     await initFamilyData(inputUserName.value.trim())
-    
     localStorage.setItem("fridge_firebase_config", JSON.stringify(configObj))
-    
-  } catch (e) {
-    console.error(e)
-    setupError.value = "設定失敗：" + (e.message || "請檢查代碼格式(建議使用標準 JSON)");
+  } catch (error) {
+    console.error(error)
+    setupError.value = `設定失敗：${error.message || "請檢查代碼格式(建議使用標準 JSON)"}`
   } finally {
     isSettingUp.value = false
   }
 }
 
-// Google Auth Wrappers
 const linkGoogleAccount = async () => {
-    const res = await firebaseLinkGoogle()
-    if (res.success) showToast("綁定成功！")
-    else showToast("綁定失敗：" + res.error, 'error')
+  const result = await firebaseLinkGoogle()
+  if (result.success) {
+    showToast("綁定成功！")
+    return
+  }
+
+  showToast(`綁定失敗：${result.error}`, 'error')
 }
 
 const unlinkGoogleAccount = async () => {
-    const res = await firebaseUnlinkGoogle()
-    if (res.success) showToast("已解除綁定")
-    else showToast("解除綁定失敗", 'error')
+  const result = await firebaseUnlinkGoogle()
+  if (result.success) {
+    showToast("已解除綁定")
+    return
+  }
+
+  showToast("解除綁定失敗", 'error')
 }
 
-// Rename Wrappers
 const saveFamilyName = async (newName) => {
-    const success = await updateFamilyName(newName)
-    if (!success) showToast("更新失敗", 'error')
+  const success = await updateFamilyName(newName)
+  if (!success) {
+    showToast("更新失敗", 'error')
+  }
 }
 
 const startEditUserName = (name) => {
@@ -560,384 +456,115 @@ const startEditUserName = (name) => {
 const confirmEditUserName = async () => {
   const newName = editUserNameTemp.value.trim()
   const oldName = currentUserName.value
-  
-  if (!newName) { nameEditError.value = "名稱不能為空"; return }
-  if (newName === oldName) { hideModal('editNameModal'); return }
-  
+
+  if (!newName) {
+    nameEditError.value = "名稱不能為空"
+    return
+  }
+
+  if (newName === oldName) {
+    hideModal('editNameModal')
+    return
+  }
+
   const success = await updateUserName(oldName, newName)
   if (success) {
-      hideModal('editNameModal')
+    hideModal('editNameModal')
   } else {
-      nameEditError.value = "更新失敗"
+    nameEditError.value = "更新失敗"
   }
-}
-
-
-// Settings Logic
-const handleSettingsChange = (newSettings) => {
-  settings.value = newSettings
-  saveSettings()
-}
-
-const loadSettings = () => {
-  const saved = localStorage.getItem("fridge_settings_v1")
-  if (saved) {
-    try {
-      const obj = JSON.parse(saved)
-      settings.value = { ...settings.value, ...obj }
-    } catch (e) {}
-  }
-}
-
-const saveSettings = () => {
-  localStorage.setItem("fridge_settings_v1", JSON.stringify(settings.value))
-}
-
-
-// 版本更新
-const showUpdateModal = (force = false) => {
-  if (force) {
-    previousPage.value = currentPage.value
-    currentPage.value = 'update-info'
-    return
-  }
-  
-  if (!settings.value.updateNotifyEnabled) return
-  
-  const lastSeen = localStorage.getItem("lastSeenUpdateVersion")
-  
-  if (lastSeen === null) {
-    localStorage.setItem("lastSeenUpdateVersion", APP_VERSION)
-    return
-  }
-
-  if (lastSeen === APP_VERSION) return
-
-  previousPage.value = currentPage.value
-  currentPage.value = 'update-info'
-}
-
-const closeUpdatePage = () => {
-  localStorage.setItem("lastSeenUpdateVersion", latestVersion.value)
-  if (previousPage.value === 'settings') {
-    currentPage.value = 'settings'
-  } else {
-    currentPage.value = 'home'
-  }
-}
-
-// 導航
-const isReturningToSidebar = ref(false)
-
-watch(currentPage, () => {
-  if (isReturningToSidebar.value) return
-  cleanupSidebar('sidebar')
-  setTimeout(() => cleanupSidebar('sidebar'), 350)
-})
-
-const toggleSidebar = () => toggleOffcanvas('sidebar')
-const openSidebarSafe = () => showOffcanvas('sidebar')
-
-const selectZoneFromSidebar = (zone) => {
-  filterZone.value = zone
-  isSelectionMode.value = false
-  selectedHomeIds.value = []
-  goHome()
-  setTimeout(() => cleanupSidebar('sidebar'), 100)
-}
-
-const goSettingsFromSidebar = () => {
-  currentPage.value = "settings"
-  setTimeout(() => cleanupSidebar('sidebar'), 100)
-}
-
-const goPageFromSidebar = (page) => {
-  currentPage.value = page
-  setTimeout(() => cleanupSidebar('sidebar'), 100)
-}
-
-const returnToSidebar = () => {
-  isReturningToSidebar.value = true
-  currentPage.value = 'home'
-  nextTick(() => {
-    setTimeout(() => {
-      openSidebarSafe()
-      setTimeout(() => { isReturningToSidebar.value = false }, 500)
-    }, 50)
-  })
-}
-
-const handleNavigateFromToBuyList = (page) => {
-  if (page === 'sidebar') {
-    returnToSidebar()
-  } else if (page === 'shopping-cart') {
-    currentPage.value = 'shopping-cart'
-  }
-}
-
-const handleNavigateFromCart = (page) => {
-  if (page === 'sidebar') {
-    returnToSidebar()
-  } else if (page === 'to-buy') {
-    currentPage.value = 'to-buy-list'
-  }
-}
-
-const goHome = () => {
-  currentPage.value = "home"
-  previewImageUrl.value = null
-  nextTick(() => {
-    window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
-  })
 }
 
 const goToAddPage = () => {
-  savedScrollY.value = window.scrollY
-  newItem.value = {
-    id: null,
-    name: "",
-    quantity: "1",
-    storedDate: getTodayStr(),
-    expiryDate: "",
-    noExpiry: false,
-    image: null,
-    zone: "cold",
-    owners: ['全家'],
-    useExistingImage: false,
-    shoppingStatus: null
-  }
+  newItem.value = createEmptyItemDraft()
   pendingPurchaseOriginalId.value = null
-  currentPage.value = "add"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
+  goToPage(pages.ADD, { saveScroll: true, resetScroll: true })
 }
 
 const goToEditPage = (item) => {
-  savedScrollY.value = window.scrollY
-  newItem.value = {
-    id: item.id,
-    name: item.name,
-    quantity: item.quantity,
-    storedDate: item.storedDate,
-    expiryDate: item.expiryDate,
-    noExpiry: item.noExpiry,
-    image: item.image,
-    zone: item.zone || 'cold',
-    owners: item.owners || ['全家'],
-    useExistingImage: false,
-    shoppingStatus: item.shoppingStatus || null
-  }
-  currentPage.value = "edit"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
+  newItem.value = createDraftFromItem(item)
+  goToPage(pages.EDIT, { saveScroll: true, resetScroll: true })
 }
 
 const goToTakeOutPage = (item) => {
-  savedScrollY.value = window.scrollY
   itemToDelete.value = item
-  const qty = parseInt(item.quantity)
-  maxTakeOut.value = (!isNaN(qty) && qty > 0) ? qty : 1
+  maxTakeOut.value = Math.max(Number.parseInt(item.quantity, 10) || 0, 1)
   takeOutAmount.value = 1
-  currentPage.value = "takeout"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
+  goToPage(pages.TAKE_OUT, { saveScroll: true, resetScroll: true })
 }
 
-
-
-// 刪除 (Optimistic UI) — 確認彈窗由 ItemForm 處理，此處直接執行
-const deleteItemPermanently = async (id) => {
-    // 1. 保留回滾需要的最小資料
-    const targetIndex = items.value.findIndex(i => i.id === id)
-    if (targetIndex === -1) return
-    const targetItem = items.value[targetIndex]
-
-    // Local Optimistic Update
-    items.value.splice(targetIndex, 1)
-    
-    // Immediate Navigation
-    if(currentPage.value === 'edit') goHome()
-
-    // Start Sync
-    store.startSync()
-    beginOptimisticUpdate()
-
-    // Async Background Task
-    const performDelete = async () => {
-        try {
-            // Firestore delete FIRST to prevent irrecoverable data loss
-            await deleteDoc(doc(db.value, "fridge_items", id))
-
-            // Image cleanup AFTER successful DB delete
-            if (targetItem) {
-                const allImages = new Set();
-                if (targetItem.image) allImages.add(targetItem.image);
-                if (targetItem.batches) {
-                    targetItem.batches.forEach(b => {
-                        if (b.image) allImages.add(b.image);
-                    });
-                }
-                await cleanupUnusedImages(allImages, []);
-            }
-        } catch (e) {
-            console.error("Delete Failed", e)
-            // Rollback: 還原被刪除的單筆
-            const rollbackIndex = Math.min(targetIndex, items.value.length)
-            const alreadyExists = items.value.some(i => i.id === targetItem.id)
-            if (!alreadyExists) {
-              items.value.splice(rollbackIndex, 0, targetItem)
-            }
-            showToast("刪除失敗，已還原", 'error')
-        } finally {
-            endOptimisticUpdate()
-            store.endSync()
-        }
-    }
-
-    performDelete()
-}
-
-const deleteSelectedNoStock = async () => {
-  if(confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
-    
-    const idsToDelete = [...selectedHomeIds.value]
-    const idsSet = new Set(idsToDelete)
-    
-    // 保存刪除項目的原始索引，供 rollback 使用
-    const removedEntries = []
-    
-    // Local Optimistic Update
-    items.value = items.value.filter((item, index) => {
-      if (idsSet.has(item.id)) {
-        removedEntries.push({ index, item })
-        return false
+const handleDeleteItem = async (id) => {
+  await deleteItemPermanently(id, {
+    onDeleted: () => {
+      if (currentPage.value === pages.EDIT) {
+        goHome()
       }
-      return true
-    })
-    
-    // Clear selection UI immediately
-    selectedHomeIds.value = []
-    isSelectionMode.value = false
-
-    store.startSync()
-    beginOptimisticUpdate()
-    
-    const performSafeBatchDelete = async () => {
-        try {
-             // Firestore Delete FIRST to prevent irrecoverable data loss
-             const promises = idsToDelete.map(id => deleteDoc(doc(db.value, "fridge_items", id)))
-             await Promise.all(promises)
-
-             // Image Cleanup AFTER successful DB delete
-             for (const { item } of removedEntries) {
-                if (item) {
-                    const allImages = new Set();
-                    if (item.image) allImages.add(item.image);
-                    if (item.batches) {
-                        item.batches.forEach(b => {
-                            if (b.image) allImages.add(b.image);
-                        });
-                    }
-                    await cleanupUnusedImages(allImages, []); 
-                }
-             }
-             
-        } catch (e) {
-            console.error("Batch Delete Failed", e)
-            // Rollback: 依原索引還原
-            const rollbackItems = [...items.value]
-            removedEntries
-              .sort((a, b) => a.index - b.index)
-              .forEach(({ index, item }) => {
-                const rollbackIndex = Math.min(Math.max(index, 0), rollbackItems.length)
-                if (!rollbackItems.some(i => i.id === item.id)) {
-                  rollbackItems.splice(rollbackIndex, 0, item)
-                }
-              })
-            store.setItems(rollbackItems)
-            showToast("刪除失敗，已還原")
-        } finally {
-            endOptimisticUpdate()
-            store.endSync()
-        }
     }
-    
-    // Trigger Background Task
-    performSafeBatchDelete()
-  }
+  })
 }
 
-// 批次加入待買 (Optimistic UI with Rollback)
+const handleDeleteSelectedNoStock = async () => {
+  if (!selectedHomeIds.value.length) return
+
+  if (!confirm(`確定要永久刪除選取的 ${selectedHomeIds.value.length} 項物品嗎？`)) {
+    return
+  }
+
+  await deleteSelectedNoStock()
+}
+
 const addBatchToBuy = async () => {
-  const idsToUpdate = [...selectedHomeIds.value]
-  
-  // Snapshot for rollback
-  const originalStatuses = idsToUpdate.map(id => {
-      const item = items.value.find(i => i.id === id)
-      return { id, status: item ? item.shoppingStatus : null }
-  })
-
-  // Local Optimistic Update
-  idsToUpdate.forEach(id => {
-      const item = items.value.find(i => i.id === id)
-      if (item) item.shoppingStatus = 'toBuy'
-  })
-  
-  // UI Feedback
-  showToast("已加入待購買清單")
-  selectedHomeIds.value = []
-  isSelectionMode.value = false
-  
-  store.startSync()
-  
-  const performBatchUpdate = async () => {
-      try {
-        const promises = idsToUpdate.map(id => 
-            updateDoc(doc(db.value, "fridge_items", id), { shoppingStatus: 'toBuy' })
-        )
-        await Promise.all(promises)
-      } catch (e) {
-          console.error("Batch Update Failed", e)
-          showToast("更新失敗，正在還原狀態...")
-          
-          // Rollback
-          originalStatuses.forEach(({ id, status }) => {
-               const item = items.value.find(i => i.id === id)
-               if (item) item.shoppingStatus = status
-          })
-          
-      } finally {
-          store.endSync()
-      }
-  }
-
-  performBatchUpdate()
+  await addSelectedToBuy()
 }
 
-// 購物
+const updatePendingPurchaseId = (value) => {
+  pendingPurchaseOriginalId.value = value
+}
+
 const startPurchase = (item) => {
   pendingPurchaseOriginalId.value = item.id
-  savedScrollY.value = window.scrollY
-  newItem.value = {
-    id: null,
-    name: item.name,
-    quantity: "1",
-    storedDate: getTodayStr(),
-    expiryDate: "",
-    noExpiry: false,
-    image: null,
-    zone: item.zone || 'cold',
-    owners: item.owners || ['全家'],
-    useExistingImage: false,
-    shoppingStatus: null
-  }
-  currentPage.value = "add"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
+  newItem.value = createPurchaseDraft(item)
+  goToPage(pages.ADD, { saveScroll: true, resetScroll: true })
 }
 
-// 預覽
-const openPreview = (url) => { previewImageUrl.value = url }
-const closePreview = () => { previewImageUrl.value = null }
-const scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+onMounted(async () => {
+  initScrollListener()
+  loadSettings()
+  showUpdateModal()
 
-watch(() => settings.value.updateNotifyEnabled, () => {
-  saveSettings()
+  const config = await checkConfig()
+  if (config) {
+    try {
+      await initFirebase(config)
+      const storedUser = localStorage.getItem("fridge_user_name")
+      if (storedUser) {
+        await initFamilyData(storedUser)
+      }
+    } catch (error) {
+      console.error("Init Failed", error)
+      isConfigured.value = false
+    }
+  }
+
+  prefetchComponents()
 })
+
+onUnmounted(() => {
+  disposeScrollListener()
+  stopListeners()
+  store.cleanupNetworkListeners()
+})
+
+watch(currentUser, async (user) => {
+  if (!user) return
+
+  const storedUser = localStorage.getItem("fridge_user_name")
+  if (!storedUser) return
+
+  try {
+    await initFamilyData(storedUser)
+  } catch (error) {
+    console.error("Data init retry failed", error)
+  }
+}, { immediate: true })
 </script>

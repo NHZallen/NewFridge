@@ -1,4 +1,10 @@
 import { Peer } from 'peerjs'
+import {
+    P2P_DESTROY_DELAY_MS,
+    P2P_RECEIVER_TIMEOUT_MS,
+    P2P_SEND_DELAY_MS,
+    P2P_SENDER_TIMEOUT_MS
+} from './constants'
 
 // Prefix to make IDs unique on the public server
 const APP_PREFIX = 'fridge-app-v1-sync-'
@@ -102,7 +108,7 @@ export const p2pManager = {
                     cleanup()
                     reject(new Error('配對逾時 (60秒)'))
                 }
-            }, 60000)
+            }, P2P_SENDER_TIMEOUT_MS)
 
             peer.on('open', () => {
                 // Peer ready, waiting for receiver...
@@ -157,7 +163,7 @@ export const p2pManager = {
                         conn.close()
                         peer.destroy()
                         resolve()
-                    }, 1000)
+                    }, P2P_SEND_DELAY_MS)
                 })
             })
 
@@ -193,7 +199,7 @@ export const p2pManager = {
                 if (connection) connection.close()
                 peer.destroy()
                 reject(new Error('連線逾時，請確認代碼是否正確或已過期'))
-            }, 10000)
+            }, P2P_RECEIVER_TIMEOUT_MS)
 
             peer.on('open', () => {
                 connection = peer.connect(targetPeerId)
@@ -214,7 +220,7 @@ export const p2pManager = {
                             const data = await decryptData(msg.payload, code)
                             resolve(data)
                             connection.close()
-                            setTimeout(() => peer.destroy(), 500)
+                            setTimeout(() => peer.destroy(), P2P_DESTROY_DELAY_MS)
                         } else if (msg.type === 'auth-failed') {
                             if (timeoutId) clearTimeout(timeoutId)
                             reject(new Error('身份驗證失敗，請確認代碼是否正確'))
@@ -250,6 +256,10 @@ export const p2pManager = {
                 reject(err)
             })
         })
+    },
+
+    createReceiver(code) {
+        return this.connectToSender(code)
     }
 }
 

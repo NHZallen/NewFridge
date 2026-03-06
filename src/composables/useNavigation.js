@@ -1,148 +1,154 @@
-import { ref, nextTick } from 'vue'
-import * as bootstrap from 'bootstrap'
+import { nextTick, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useMainStore } from '../stores'
+import { APP_PAGES } from '../utils/constants'
 
-/**
- * 頁面導航和 Bootstrap UI 控制的 composable
- */
-export function useNavigation() {
-    // 頁面狀態
-    const currentPage = ref("home")
-    const previousPage = ref("home")
-    const savedScrollY = ref(0)
-    const showScrollTop = ref(false)
+export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }) {
+    const store = useMainStore()
+    const {
+        currentPage,
+        previousPage,
+        savedScrollY,
+        showScrollTop,
+        previewImageUrl,
+        isSelectionMode,
+        selectedHomeIds,
+        filterZone
+    } = storeToRefs(store)
+
     const isReturningToSidebar = ref(false)
 
-    // ==================== Bootstrap 清理 ====================
-
-    const cleanupBackdrops = () => {
-        document.querySelectorAll('.offcanvas-backdrop').forEach(el => el.remove())
-        document.body.classList.remove('modal-open')
-        document.body.style.removeProperty('overflow')
-        document.body.style.removeProperty('padding-right')
-
-        const sidebarEl = document.getElementById('sidebar')
-        if (sidebarEl) {
-            const inst = bootstrap.Offcanvas.getInstance(sidebarEl)
-            if (inst) {
-                try { inst.hide() } catch (e) { }
-            }
-            sidebarEl.classList.remove('show')
-            sidebarEl.setAttribute('aria-hidden', 'true')
-            sidebarEl.removeAttribute('aria-modal')
-            sidebarEl.removeAttribute('role')
-        }
+    const onScrollHandler = () => {
+        store.setShowScrollTop(window.scrollY > 300)
     }
 
-    // ==================== Sidebar 控制 ====================
-
-    const toggleSidebar = () => {
-        const el = document.getElementById("sidebar")
-        if (el) {
-            const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
-            inst.toggle()
-        }
+    const initScrollListener = () => {
+        window.addEventListener('scroll', onScrollHandler)
     }
 
-    const openSidebarSafe = () => {
-        const el = document.getElementById("sidebar")
-        if (el) {
-            const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
-            inst.show()
-        }
+    const disposeScrollListener = () => {
+        window.removeEventListener('scroll', onScrollHandler)
     }
 
-    // ==================== Modal 控制 ====================
+    watch(currentPage, () => {
+        if (isReturningToSidebar.value) return
 
-    const showModal = (id) => {
-        const el = document.getElementById(id)
-        if (el) {
-            const modal = new bootstrap.Modal(el)
-            modal.show()
-        }
+        cleanupSidebar('sidebar')
+        setTimeout(() => cleanupSidebar('sidebar'), 350)
+    })
+
+    const toggleSidebar = () => toggleOffcanvas('sidebar')
+    const openSidebarSafe = () => showOffcanvas('sidebar')
+
+    const openPreview = (url) => {
+        store.setPreviewImageUrl(url)
     }
 
-    const hideModal = (id) => {
-        const el = document.getElementById(id)
-        if (el) {
-            const inst = bootstrap.Modal.getInstance(el)
-            if (inst) inst.hide()
-        }
+    const closePreview = () => {
+        store.clearPreviewImage()
     }
-
-    // ==================== 導航方法 ====================
-
-    const goHome = () => {
-        currentPage.value = "home"
-        nextTick(() => {
-            window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
-        })
-    }
-
-    const goToPage = (page, saveScroll = true) => {
-        if (saveScroll) {
-            savedScrollY.value = window.scrollY
-        }
-        currentPage.value = page
-        nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
-    }
-
-    const goPageFromSidebar = (page) => {
-        currentPage.value = page
-        setTimeout(cleanupBackdrops, 100)
-    }
-
-    const goSettingsFromSidebar = () => {
-        currentPage.value = "settings"
-        setTimeout(cleanupBackdrops, 100)
-    }
-
-    const returnToSidebar = () => {
-        isReturningToSidebar.value = true
-        currentPage.value = 'home'
-        nextTick(() => {
-            setTimeout(() => {
-                openSidebarSafe()
-                setTimeout(() => { isReturningToSidebar.value = false }, 500)
-            }, 50)
-        })
-    }
-
-    // ==================== Scroll ====================
 
     const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
-    const initScrollListener = () => {
-        window.addEventListener('scroll', () => {
-            showScrollTop.value = window.scrollY > 300
+    const goHome = () => {
+        store.setCurrentPage(APP_PAGES.HOME)
+        store.clearPreviewImage()
+
+        nextTick(() => {
+            window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
         })
     }
 
+    const goToPage = (page, { saveScroll = false, resetScroll = false } = {}) => {
+        if (saveScroll) {
+            store.setSavedScrollY(window.scrollY)
+        }
+
+        store.setCurrentPage(page)
+
+        if (resetScroll) {
+            nextTick(() => {
+                window.scrollTo({ top: 0, behavior: 'auto' })
+            })
+        }
+    }
+
+    const selectZoneFromSidebar = (zone) => {
+        filterZone.value = zone
+        store.clearSelection()
+        goHome()
+        setTimeout(() => cleanupSidebar('sidebar'), 100)
+    }
+
+    const goSettingsFromSidebar = () => {
+        store.setCurrentPage(APP_PAGES.SETTINGS)
+        setTimeout(() => cleanupSidebar('sidebar'), 100)
+    }
+
+    const goPageFromSidebar = (page) => {
+        store.setCurrentPage(page)
+        setTimeout(() => cleanupSidebar('sidebar'), 100)
+    }
+
+    const returnToSidebar = () => {
+        isReturningToSidebar.value = true
+        store.setCurrentPage(APP_PAGES.HOME)
+
+        nextTick(() => {
+            setTimeout(() => {
+                openSidebarSafe()
+                setTimeout(() => {
+                    isReturningToSidebar.value = false
+                }, 500)
+            }, 50)
+        })
+    }
+
+    const handleNavigateFromToBuyList = (page) => {
+        if (page === 'sidebar') {
+            returnToSidebar()
+            return
+        }
+
+        if (page === 'shopping-cart') {
+            store.setCurrentPage(APP_PAGES.SHOPPING_CART)
+        }
+    }
+
+    const handleNavigateFromCart = (page) => {
+        if (page === 'sidebar') {
+            returnToSidebar()
+            return
+        }
+
+        if (page === 'to-buy') {
+            store.setCurrentPage(APP_PAGES.TO_BUY_LIST)
+        }
+    }
+
     return {
-        // State
+        pages: APP_PAGES,
         currentPage,
         previousPage,
         savedScrollY,
         showScrollTop,
-        isReturningToSidebar,
-
-        // Bootstrap
-        cleanupBackdrops,
+        previewImageUrl,
+        isSelectionMode,
+        selectedHomeIds,
         toggleSidebar,
-        openSidebarSafe,
-        showModal,
-        hideModal,
-
-        // Navigation
+        openPreview,
+        closePreview,
+        scrollToTop,
+        initScrollListener,
+        disposeScrollListener,
         goHome,
         goToPage,
-        goPageFromSidebar,
+        selectZoneFromSidebar,
         goSettingsFromSidebar,
-        returnToSidebar,
-
-        // Scroll
-        scrollToTop,
-        initScrollListener
+        goPageFromSidebar,
+        handleNavigateFromToBuyList,
+        handleNavigateFromCart
     }
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { isNoExpiry } from '../utils/itemHelpers'
 import { getDays } from '../utils/dateUtils'
+import { APP_PAGES } from '../utils/constants'
 
 export const useMainStore = defineStore('main', () => {
     // === State ===
@@ -11,9 +12,12 @@ export const useMainStore = defineStore('main', () => {
         members: []
     })
     const currentUser = ref(null)
+    const currentUserName = ref("")
 
     const isLoading = ref(false)
     const activeSyncs = ref(0)
+    const optimisticItemsUpdateCount = ref(0)
+    let queuedRemoteItems = null
 
     // Network Status
     const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
@@ -43,6 +47,15 @@ export const useMainStore = defineStore('main', () => {
     const debouncedSearchText = ref("")
     const filterZone = ref("all")
 
+    // Navigation / page UI
+    const currentPage = ref(APP_PAGES.HOME)
+    const previousPage = ref(APP_PAGES.HOME)
+    const savedScrollY = ref(0)
+    const showScrollTop = ref(false)
+    const previewImageUrl = ref(null)
+    const isSelectionMode = ref(false)
+    const selectedHomeIds = ref([])
+
     // Debounce search: UI stays responsive, filtering delays 250ms
     let _searchTimer = null
     watch(searchText, (val) => {
@@ -65,8 +78,35 @@ export const useMainStore = defineStore('main', () => {
         currentUser.value = user
     }
 
+    const setCurrentUserName = (name) => {
+        currentUserName.value = name || ""
+    }
+
     const setLoading = (loading) => {
         isLoading.value = loading
+    }
+
+    const applyRemoteItems = (newItems) => {
+        if (optimisticItemsUpdateCount.value > 0) {
+            queuedRemoteItems = newItems
+            return
+        }
+        items.value = newItems
+    }
+
+    const beginOptimisticItemsUpdate = () => {
+        optimisticItemsUpdateCount.value++
+    }
+
+    const endOptimisticItemsUpdate = () => {
+        if (optimisticItemsUpdateCount.value > 0) {
+            optimisticItemsUpdateCount.value--
+        }
+
+        if (optimisticItemsUpdateCount.value === 0 && queuedRemoteItems) {
+            items.value = queuedRemoteItems
+            queuedRemoteItems = null
+        }
     }
 
     const startSync = () => {
@@ -83,6 +123,106 @@ export const useMainStore = defineStore('main', () => {
 
     const resetVisibleCount = () => {
         homeVisibleCount.value = 20
+    }
+
+    const setCurrentPage = (page) => {
+        currentPage.value = page
+    }
+
+    const setPreviousPage = (page) => {
+        previousPage.value = page
+    }
+
+    const setSavedScrollY = (y) => {
+        savedScrollY.value = y
+    }
+
+    const setShowScrollTop = (show) => {
+        showScrollTop.value = show
+    }
+
+    const setPreviewImageUrl = (url) => {
+        previewImageUrl.value = url
+    }
+
+    const clearPreviewImage = () => {
+        previewImageUrl.value = null
+    }
+
+    const setSelectionMode = (enabled) => {
+        isSelectionMode.value = !!enabled
+    }
+
+    const setSelectedHomeIds = (ids) => {
+        selectedHomeIds.value = Array.isArray(ids) ? [...ids] : []
+    }
+
+    const clearSelection = () => {
+        isSelectionMode.value = false
+        selectedHomeIds.value = []
+    }
+
+    const removeItemLocally = (id) => {
+        const index = items.value.findIndex((item) => item.id === id)
+        if (index === -1) return null
+
+        const [item] = items.value.splice(index, 1)
+        return { index, item }
+    }
+
+    const removeItemsLocally = (ids) => {
+        const idsSet = new Set(ids)
+        const removedEntries = []
+
+        items.value = items.value.filter((item, index) => {
+            if (!idsSet.has(item.id)) return true
+
+            removedEntries.push({ index, item })
+            return false
+        })
+
+        return removedEntries
+    }
+
+    const restoreRemovedItems = (removedEntries) => {
+        const rollbackItems = [...items.value]
+
+        removedEntries
+            .slice()
+            .sort((a, b) => a.index - b.index)
+            .forEach(({ index, item }) => {
+                const rollbackIndex = Math.min(Math.max(index, 0), rollbackItems.length)
+                if (!rollbackItems.some((existing) => existing.id === item.id)) {
+                    rollbackItems.splice(rollbackIndex, 0, item)
+                }
+            })
+
+        items.value = rollbackItems
+    }
+
+    const snapshotShoppingStatuses = (ids) => {
+        return ids.map((id) => {
+            const item = items.value.find((entry) => entry.id === id)
+            return { id, status: item ? item.shoppingStatus : null }
+        })
+    }
+
+    const setShoppingStatusLocally = (ids, status) => {
+        const idsSet = new Set(ids)
+        items.value.forEach((item) => {
+            if (idsSet.has(item.id)) {
+                item.shoppingStatus = status
+            }
+        })
+    }
+
+    const restoreShoppingStatuses = (snapshots) => {
+        snapshots.forEach(({ id, status }) => {
+            const item = items.value.find((entry) => entry.id === id)
+            if (item) {
+                item.shoppingStatus = status
+            }
+        })
     }
 
     // === Getters (Computed) ===
@@ -175,15 +315,27 @@ export const useMainStore = defineStore('main', () => {
         items,
         familySettings,
         currentUser,
+        currentUserName,
         isLoading,
         isOnline,
         searchText,
         filterZone,
+        currentPage,
+        previousPage,
+        savedScrollY,
+        showScrollTop,
+        previewImageUrl,
+        isSelectionMode,
+        selectedHomeIds,
 
         setItems,
+        applyRemoteItems,
         setFamilySettings,
         setCurrentUser,
+        setCurrentUserName,
         setLoading,
+        beginOptimisticItemsUpdate,
+        endOptimisticItemsUpdate,
 
         filteredItems,
         zoneStats,
@@ -199,6 +351,21 @@ export const useMainStore = defineStore('main', () => {
         homeVisibleCount,
         loadMoreItems,
         resetVisibleCount,
+        setCurrentPage,
+        setPreviousPage,
+        setSavedScrollY,
+        setShowScrollTop,
+        setPreviewImageUrl,
+        clearPreviewImage,
+        setSelectionMode,
+        setSelectedHomeIds,
+        clearSelection,
+        removeItemLocally,
+        removeItemsLocally,
+        restoreRemovedItems,
+        snapshotShoppingStatuses,
+        setShoppingStatusLocally,
+        restoreShoppingStatuses,
 
         cleanupNetworkListeners
     }

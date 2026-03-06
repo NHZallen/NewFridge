@@ -1,4 +1,4 @@
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore'
+import { doc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { storeToRefs } from 'pinia'
 import { useFirebase } from './useFirebase'
 import { useMainStore } from '../stores'
@@ -24,6 +24,20 @@ export function useInventoryActions({ showToast = () => {} } = {}) {
     const store = useMainStore()
     const { db } = useFirebase()
     const { items, selectedHomeIds } = storeToRefs(store)
+    const FIRESTORE_BATCH_LIMIT = 500
+
+    const commitBatchedWrites = async (ids, applyOperation) => {
+        for (let index = 0; index < ids.length; index += FIRESTORE_BATCH_LIMIT) {
+            const batch = writeBatch(db.value)
+            const chunk = ids.slice(index, index + FIRESTORE_BATCH_LIMIT)
+
+            chunk.forEach((id) => {
+                applyOperation(batch, doc(db.value, "fridge_items", id), id)
+            })
+
+            await batch.commit()
+        }
+    }
 
     const updateShoppingStatus = async ({
         ids,
@@ -48,11 +62,11 @@ export function useInventoryActions({ showToast = () => {} } = {}) {
         store.startSync()
 
         try {
-            await Promise.all(
-                ids.map((id) => updateDoc(doc(db.value, "fridge_items", id), {
+            await commitBatchedWrites(ids, (batch, docRef) => {
+                batch.update(docRef, {
                     shoppingStatus: nextStatus
-                }))
-            )
+                })
+            })
             return true
         } catch (error) {
             console.error("Shopping status update failed", error)
@@ -102,9 +116,9 @@ export function useInventoryActions({ showToast = () => {} } = {}) {
         store.beginOptimisticItemsUpdate()
 
         try {
-            await Promise.all(
-                idsToDelete.map((id) => deleteDoc(doc(db.value, "fridge_items", id)))
-            )
+            await commitBatchedWrites(idsToDelete, (batch, docRef) => {
+                batch.delete(docRef)
+            })
 
             for (const { item } of removedEntries) {
                 await cleanupUnusedImages(collectItemImages(item), [])

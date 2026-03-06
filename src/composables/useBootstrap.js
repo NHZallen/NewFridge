@@ -1,5 +1,7 @@
 import { ref, nextTick } from 'vue'
-import * as bootstrap from 'bootstrap'
+import Toast from 'bootstrap/js/dist/toast.js'
+import Modal from 'bootstrap/js/dist/modal.js'
+import Offcanvas from 'bootstrap/js/dist/offcanvas.js'
 
 /**
  * Bootstrap UI 元件控制的 composable
@@ -20,7 +22,7 @@ export function useBootstrap() {
 
         nextTick(() => {
             if (toastEl.value) {
-                const t = bootstrap.Toast.getOrCreateInstance(toastEl.value)
+                const t = Toast.getOrCreateInstance(toastEl.value)
                 t.show()
             }
         })
@@ -32,7 +34,7 @@ export function useBootstrap() {
     const showModal = (id) => {
         const el = document.getElementById(id)
         if (el) {
-            const modal = new bootstrap.Modal(el)
+            const modal = new Modal(el)
             modal.show()
         }
     }
@@ -43,7 +45,7 @@ export function useBootstrap() {
     const hideModal = (id) => {
         const el = document.getElementById(id)
         if (el) {
-            const inst = bootstrap.Modal.getInstance(el)
+            const inst = Modal.getInstance(el)
             if (inst) inst.hide()
         }
     }
@@ -54,7 +56,7 @@ export function useBootstrap() {
     const toggleOffcanvas = (id) => {
         const el = document.getElementById(id)
         if (el) {
-            const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
+            const inst = Offcanvas.getOrCreateInstance(el)
             inst.toggle()
         }
     }
@@ -65,7 +67,7 @@ export function useBootstrap() {
     const showOffcanvas = (id) => {
         const el = document.getElementById(id)
         if (el) {
-            const inst = bootstrap.Offcanvas.getOrCreateInstance(el)
+            const inst = Offcanvas.getOrCreateInstance(el)
             inst.show()
         }
     }
@@ -92,7 +94,7 @@ export function useBootstrap() {
 
         const sidebarEl = document.getElementById(sidebarId)
         if (sidebarEl) {
-            const inst = bootstrap.Offcanvas.getInstance(sidebarEl)
+            const inst = Offcanvas.getInstance(sidebarEl)
             if (inst) {
                 try { inst.hide() } catch (e) { }
             }

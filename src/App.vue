@@ -341,15 +341,33 @@ const pendingPurchaseOriginalId = ref(null)
 const editUserNameTemp = ref("")
 const nameEditError = ref("")
 
+const shouldPrefetchComponents = () => {
+  if (typeof window === 'undefined' || !navigator.onLine) {
+    return false
+  }
+
+  const connection =
+    navigator.connection ||
+    navigator.mozConnection ||
+    navigator.webkitConnection
+
+  if (connection?.saveData) {
+    return false
+  }
+
+  return !['slow-2g', '2g'].includes(connection?.effectiveType)
+}
+
 const prefetchComponents = () => {
+  if (!shouldPrefetchComponents()) {
+    return
+  }
+
   const components = [
-    () => import('./components/SetupScreen.vue'),
     () => import('./components/ItemForm.vue'),
     () => import('./components/TakeOutPage.vue'),
-    () => import('./components/UpdateInfoPage.vue'),
     () => import('./components/ToBuyListPage.vue'),
-    () => import('./components/ShoppingCartPage.vue'),
-    () => import('./components/SettingsPage.vue')
+    () => import('./components/ShoppingCartPage.vue')
   ]
 
   const startPrefetch = () => {

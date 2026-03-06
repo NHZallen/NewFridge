@@ -58,6 +58,19 @@ export default defineConfig({
   build: {
     sourcemap: false,
     minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+
+          if (id.includes('firebase')) return 'firebase'
+          if (id.includes('pinia') || id.includes('/vue/')) return 'vue-core'
+          if (id.includes('bootstrap')) return 'bootstrap'
+          if (id.includes('@vercel/analytics')) return 'analytics'
+          if (id.includes('peerjs')) return 'peerjs'
+        }
+      }
+    },
     terserOptions: {
       compress: {
         drop_debugger: true,

@@ -20,6 +20,23 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     const instantScrollTo = (top = 0) => {
         window.scrollTo(0, top)
     }
+    const hideAppDuringScrollReset = () => {
+        const appEl = document.getElementById('app')
+        if (!appEl) return () => {}
+
+        const previousVisibility = appEl.style.visibility
+        const previousPointerEvents = appEl.style.pointerEvents
+
+        appEl.style.visibility = 'hidden'
+        appEl.style.pointerEvents = 'none'
+
+        return () => {
+            requestAnimationFrame(() => {
+                appEl.style.visibility = previousVisibility
+                appEl.style.pointerEvents = previousPointerEvents
+            })
+        }
+    }
 
     const onScrollHandler = () => {
         store.setShowScrollTop(window.scrollY > 300)
@@ -56,15 +73,20 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     }
 
     const goHome = () => {
+        const revealApp = hideAppDuringScrollReset()
+
         store.setCurrentPage(APP_PAGES.HOME)
         store.clearPreviewImage()
 
         nextTick(() => {
             instantScrollTo(savedScrollY.value)
+            revealApp()
         })
     }
 
     const goToPage = (page, { saveScroll = false, resetScroll = false } = {}) => {
+        const revealApp = resetScroll ? hideAppDuringScrollReset() : () => {}
+
         if (saveScroll) {
             store.setSavedScrollY(window.scrollY)
         }
@@ -74,11 +96,17 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         if (resetScroll) {
             nextTick(() => {
                 instantScrollTo(0)
+                revealApp()
             })
+            return
         }
+
+        revealApp()
     }
 
     const selectZoneFromSidebar = (zone) => {
+        const revealApp = hideAppDuringScrollReset()
+
         filterZone.value = zone
         store.clearSelection()
         store.setCurrentPage(APP_PAGES.HOME)
@@ -86,6 +114,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
 
         nextTick(() => {
             instantScrollTo(0)
+            revealApp()
         })
 
         setTimeout(() => cleanupSidebar('sidebar'), 100)
@@ -109,10 +138,12 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
 
     const returnToSidebar = () => {
         isReturningToSidebar.value = true
+        const revealApp = hideAppDuringScrollReset()
         store.setCurrentPage(APP_PAGES.HOME)
 
         nextTick(() => {
             instantScrollTo(0)
+            revealApp()
             setTimeout(() => {
                 openSidebarSafe()
                 setTimeout(() => {

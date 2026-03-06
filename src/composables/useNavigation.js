@@ -22,7 +22,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     }
     const hideAppDuringScrollReset = () => {
         const appEl = document.getElementById('app')
-        if (!appEl) return () => {}
+        if (!appEl) return () => { }
 
         const previousVisibility = appEl.style.visibility
         const previousPointerEvents = appEl.style.pointerEvents
@@ -31,9 +31,12 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         appEl.style.pointerEvents = 'none'
 
         return () => {
+            // 雙層 rAF：確保瀏覽器完成佈局和渲染後才恢復可見性
             requestAnimationFrame(() => {
-                appEl.style.visibility = previousVisibility
-                appEl.style.pointerEvents = previousPointerEvents
+                requestAnimationFrame(() => {
+                    appEl.style.visibility = previousVisibility
+                    appEl.style.pointerEvents = previousPointerEvents
+                })
             })
         }
     }
@@ -85,7 +88,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     }
 
     const goToPage = (page, { saveScroll = false, resetScroll = false } = {}) => {
-        const revealApp = resetScroll ? hideAppDuringScrollReset() : () => {}
+        const revealApp = resetScroll ? hideAppDuringScrollReset() : () => { }
 
         if (saveScroll) {
             store.setSavedScrollY(window.scrollY)

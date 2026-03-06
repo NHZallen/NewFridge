@@ -17,6 +17,9 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     } = storeToRefs(store)
 
     const isReturningToSidebar = ref(false)
+    const instantScrollTo = (top = 0) => {
+        window.scrollTo(0, top)
+    }
 
     const onScrollHandler = () => {
         store.setShowScrollTop(window.scrollY > 300)
@@ -57,7 +60,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         store.clearPreviewImage()
 
         nextTick(() => {
-            window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
+            instantScrollTo(savedScrollY.value)
         })
     }
 
@@ -70,7 +73,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
 
         if (resetScroll) {
             nextTick(() => {
-                window.scrollTo({ top: 0, behavior: 'auto' })
+                instantScrollTo(0)
             })
         }
     }
@@ -78,17 +81,29 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
     const selectZoneFromSidebar = (zone) => {
         filterZone.value = zone
         store.clearSelection()
-        goHome()
+        store.setCurrentPage(APP_PAGES.HOME)
+        store.clearPreviewImage()
+
+        nextTick(() => {
+            instantScrollTo(0)
+        })
+
         setTimeout(() => cleanupSidebar('sidebar'), 100)
     }
 
     const goSettingsFromSidebar = () => {
-        store.setCurrentPage(APP_PAGES.SETTINGS)
+        goToPage(APP_PAGES.SETTINGS, {
+            saveScroll: currentPage.value === APP_PAGES.HOME,
+            resetScroll: true
+        })
         setTimeout(() => cleanupSidebar('sidebar'), 100)
     }
 
     const goPageFromSidebar = (page) => {
-        store.setCurrentPage(page)
+        goToPage(page, {
+            saveScroll: currentPage.value === APP_PAGES.HOME,
+            resetScroll: page !== APP_PAGES.HOME
+        })
         setTimeout(() => cleanupSidebar('sidebar'), 100)
     }
 
@@ -97,6 +112,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         store.setCurrentPage(APP_PAGES.HOME)
 
         nextTick(() => {
+            instantScrollTo(0)
             setTimeout(() => {
                 openSidebarSafe()
                 setTimeout(() => {
@@ -113,7 +129,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         }
 
         if (page === 'shopping-cart') {
-            store.setCurrentPage(APP_PAGES.SHOPPING_CART)
+            goToPage(APP_PAGES.SHOPPING_CART, { resetScroll: true })
         }
     }
 
@@ -124,7 +140,7 @@ export function useNavigation({ cleanupSidebar, toggleOffcanvas, showOffcanvas }
         }
 
         if (page === 'to-buy') {
-            store.setCurrentPage(APP_PAGES.TO_BUY_LIST)
+            goToPage(APP_PAGES.TO_BUY_LIST, { resetScroll: true })
         }
     }
 

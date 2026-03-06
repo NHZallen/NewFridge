@@ -341,8 +341,7 @@ const getItemDaysToExpiry = (itemId) => visibleItemDaysMap.value.get(itemId) ?? 
 // Reset visible count ONLY when filter keys change, not when data updates
 watch([() => props.searchText, () => props.filterZone], () => {
     resetVisibleCount()
-    // Optional: Scroll to top when filter changes to show top results
-    window.scrollTo({ top: 0, behavior: 'auto' })
+    window.scrollTo(0, 0)
 })
 
 onMounted(() => {

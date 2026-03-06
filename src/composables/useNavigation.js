@@ -74,7 +74,7 @@ export function useNavigation() {
     const goHome = () => {
         currentPage.value = "home"
         nextTick(() => {
-            window.scrollTo({ top: savedScrollY.value, behavior: 'instant' })
+            window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
         })
     }
 
@@ -83,7 +83,7 @@ export function useNavigation() {
             savedScrollY.value = window.scrollY
         }
         currentPage.value = page
-        nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+        nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
     }
 
     const goPageFromSidebar = (page) => {

@@ -183,12 +183,12 @@
                                 </label>
                             </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li v-for="member in familySettings.members" :key="member">
+                            <li v-for="member in familySettings.members" :key="member.uid || member">
                                 <label class="dropdown-item-custom">
                                     <input type="checkbox" class="form-check-input"
-                                           :checked="formItem.owners.includes(member)"
-                                           @change="toggleOwner(member)">
-                                    {{ member }}
+                                           :checked="formItem.owners.includes(member.displayName || member)"
+                                           @change="toggleOwner(member.displayName || member)">
+                                    {{ member.displayName || member }}
                                 </label>
                             </li>
                         </ul>

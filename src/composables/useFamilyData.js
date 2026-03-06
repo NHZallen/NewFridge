@@ -17,6 +17,25 @@ const setupError = ref("")
 let unsubscribeItems = null
 let unsubscribeSettings = null
 
+/**
+ * 成員結構：{ uid: string, displayName: string }
+ * uid 為穩定主鍵，displayName 可隨意更改。
+ * 向下相容：如果 Firestore 中存在舊格式的純字串成員，會自動遷移為物件格式。
+ */
+
+// 正規化成員：確保都是 { uid, displayName } 格式
+function normalizeMember(m) {
+    if (typeof m === 'string') {
+        // 舊格式遷移：以 displayName 產生 uid
+        return { uid: crypto.randomUUID(), displayName: m }
+    }
+    return m
+}
+
+function normalizeMembers(members) {
+    return (members || []).map(normalizeMember)
+}
+
 export function useFamilyData() {
     const { db } = useFirebase()
 
@@ -29,22 +48,24 @@ export function useFamilyData() {
             await runTransaction(db.value, async (transaction) => {
                 const docSnap = await transaction.get(settingsRef)
                 if (!docSnap.exists()) {
+                    const newMember = { uid: crypto.randomUUID(), displayName: userName }
                     transaction.set(settingsRef, {
                         familyName: "我的家庭",
-                        members: [userName]
+                        members: [newMember]
                     })
-                    familySettings.value = { familyName: "我的家庭", members: [userName] }
+                    familySettings.value = { familyName: "我的家庭", members: [newMember] }
                 } else {
                     const data = docSnap.data()
-                    const members = data.members || []
-                    if (!members.includes(userName)) {
-                        transaction.update(settingsRef, {
-                            members: arrayUnion(userName)
-                        })
+                    let members = normalizeMembers(data.members)
+                    const existing = members.find(m => m.displayName === userName)
+                    if (!existing) {
+                        const newMember = { uid: crypto.randomUUID(), displayName: userName }
+                        members.push(newMember)
+                        transaction.update(settingsRef, { members })
                     }
                     familySettings.value = {
                         familyName: data.familyName || "我的家庭",
-                        members: members.includes(userName) ? members : [...members, userName]
+                        members
                     }
                 }
             })
@@ -85,12 +106,13 @@ export function useFamilyData() {
         unsubscribeSettings = onSnapshot(doc(db.value, "family_metadata", "general"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data()
+                const members = normalizeMembers(data.members)
 
                 // Immutable update to allow shallow watching in App.vue
                 familySettings.value = {
                     ...familySettings.value,
                     familyName: data.familyName,
-                    members: data.members || []
+                    members
                 }
 
                 // Handle Rename logic
@@ -149,16 +171,25 @@ export function useFamilyData() {
                 if (!docSnap.exists()) throw "Document does not exist!";
 
                 const data = docSnap.data();
-                let members = data.members || [];
+                let members = normalizeMembers(data.members);
 
-                // Remove old, add new
-                const newMembers = members.filter(m => m !== oldName);
-                if (!newMembers.includes(newName)) {
-                    newMembers.push(newName);
+                // 以 uid 或 displayName 找到目標成員，更新 displayName
+                const target = members.find(m => m.displayName === oldName)
+                if (target) {
+                    target.displayName = newName
+                } else {
+                    // Fallback: 找不到就新增
+                    members.push({ uid: crypto.randomUUID(), displayName: newName })
+                }
+
+                // 確保無重複 displayName
+                const names = members.map(m => m.displayName)
+                if (new Set(names).size !== names.length) {
+                    throw new Error("此名稱已被其他成員使用")
                 }
 
                 transaction.update(docRef, {
-                    members: newMembers,
+                    members,
                     latest_rename: { from: oldName, to: newName, at: Date.now() }
                 });
             });
@@ -172,6 +203,12 @@ export function useFamilyData() {
         }
     }
 
+    // 取得當前使用者的 uid（供未來資料關聯使用）
+    const getCurrentMemberUid = () => {
+        const member = familySettings.value.members.find(m => m.displayName === currentUserName.value)
+        return member?.uid || null
+    }
+
     return {
         items,
         familySettings,
@@ -181,9 +218,9 @@ export function useFamilyData() {
         isSettingUp,
         initFamilyData,
         updateUserName,
-        updateFamilyName, // Exported
+        updateFamilyName,
         stopListeners,
-        startListeners
+        startListeners,
+        getCurrentMemberUid
     }
 }
-

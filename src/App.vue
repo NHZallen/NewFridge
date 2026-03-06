@@ -687,7 +687,7 @@ const goHome = () => {
   currentPage.value = "home"
   previewImageUrl.value = null
   nextTick(() => {
-    window.scrollTo({ top: savedScrollY.value, behavior: 'instant' })
+    window.scrollTo({ top: savedScrollY.value, behavior: 'auto' })
   })
 }
 
@@ -708,7 +708,7 @@ const goToAddPage = () => {
   }
   pendingPurchaseOriginalId.value = null
   currentPage.value = "add"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
 }
 
 const goToEditPage = (item) => {
@@ -727,7 +727,7 @@ const goToEditPage = (item) => {
     shoppingStatus: item.shoppingStatus || null
   }
   currentPage.value = "edit"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
 }
 
 const goToTakeOutPage = (item) => {
@@ -737,15 +737,13 @@ const goToTakeOutPage = (item) => {
   maxTakeOut.value = (!isNaN(qty) && qty > 0) ? qty : 1
   takeOutAmount.value = 1
   currentPage.value = "takeout"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
 }
 
 
 
-// 刪除 (Optimistic UI)
+// 刪除 (Optimistic UI) — 確認彈窗由 ItemForm 處理，此處直接執行
 const deleteItemPermanently = async (id) => {
-  if(confirm("確定要永久刪除此物品嗎？此操作無法復原。")) {
-    
     // 1. 保留回滾需要的最小資料
     const targetIndex = items.value.findIndex(i => i.id === id)
     if (targetIndex === -1) return
@@ -794,7 +792,6 @@ const deleteItemPermanently = async (id) => {
     }
 
     performDelete()
-  }
 }
 
 const deleteSelectedNoStock = async () => {
@@ -932,7 +929,7 @@ const startPurchase = (item) => {
     shoppingStatus: null
   }
   currentPage.value = "add"
-  nextTick(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  nextTick(() => window.scrollTo({ top: 0, behavior: 'auto' }))
 }
 
 // 預覽

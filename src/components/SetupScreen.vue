@@ -54,14 +54,14 @@
     <div v-if="showSyncModal" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center" style="z-index: 2000;">
       <div class="card shadow rounded-4 text-center p-4" style="width: 90%; max-width: 350px;">
         <h4 class="fw-bold mb-3">輸入同步代碼</h4>
-        <p class="text-muted small mb-3">請在舊裝置上點擊「快速同步」或「分享家庭」，並輸入顯示的 6 位數代碼。</p>
+        <p class="text-muted small mb-3">請在舊裝置上點擊「快速同步」或「分享家庭」，並輸入顯示的 8 位數代碼。</p>
 
         <div class="mb-3">
            <input type="text" 
                   class="form-control form-control-lg text-center font-monospace fw-bold letter-spacing-2" 
                   v-model="syncCode" 
-                  placeholder="6位代碼" 
-                  maxlength="6"
+                  placeholder="8位代碼" 
+                  maxlength="8"
                   :disabled="isSyncing"
            >
         </div>
@@ -107,7 +107,7 @@ const closeSyncModal = () => {
 }
 
 const startSync = async () => {
-    if (!syncCode.value || syncCode.value.length < 6) return
+    if (!syncCode.value || syncCode.value.length < 8) return
     
     isSyncing.value = true
     syncError.value = ''

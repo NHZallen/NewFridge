@@ -3,6 +3,9 @@ import { Peer } from 'peerjs'
 // Prefix to make IDs unique on the public server
 const APP_PREFIX = 'fridge-app-v1-sync-'
 
+// Sync code validity duration (10 minutes)
+const CODE_EXPIRY_MS = 10 * 60 * 1000
+
 // --- AES-GCM Encryption Helpers ---
 
 async function deriveKey(code) {
@@ -33,14 +36,37 @@ async function decryptData(payload, code) {
     return JSON.parse(new TextDecoder().decode(decrypted))
 }
 
+// --- Challenge-Response Helpers ---
+
+async function computeChallenge(code, nonce) {
+    const encoder = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(code),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    )
+    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(nonce))
+    return Array.from(new Uint8Array(sig))
+}
+
+function arrayEqual(a, b) {
+    if (a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false
+    }
+    return true
+}
+
 // --- P2P Manager ---
 
 export const p2pManager = {
-    // Generate a random 6-character alphanumeric code
+    // Generate a random 8-character alphanumeric code
     generateSyncCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Removed easily confused chars (I, 1, O, 0)
         let result = ''
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 8; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length))
         }
         return result
@@ -48,7 +74,7 @@ export const p2pManager = {
 
     /**
      * Sender (Old Device)
-     * @param {string} code - 6-char sync code (from generateSyncCode)
+     * @param {string} code - 8-char sync code (from generateSyncCode)
      * @param {Object} data - The data to send (Firebase config, etc.)
      * @param {Function} onConnected - Callback when receiver connects
      * @returns {{ cancel: Function, promise: Promise<void> }}
@@ -59,6 +85,7 @@ export const p2pManager = {
         let connection = null
         let timeoutId = null
         let rejectPromise = null
+        const createdAt = Date.now()
 
         const cleanup = () => {
             if (timeoutId) clearTimeout(timeoutId)
@@ -82,17 +109,48 @@ export const p2pManager = {
             })
 
             peer.on('connection', (conn) => {
+                // Check code expiry
+                if (Date.now() - createdAt > CODE_EXPIRY_MS) {
+                    conn.close()
+                    cleanup()
+                    reject(new Error('同步碼已過期，請重新產生'))
+                    return
+                }
+
                 if (timeoutId) clearTimeout(timeoutId)
                 connection = conn
 
                 conn.on('open', async () => {
                     if (onConnected) onConnected()
+
                     try {
+                        // === Challenge-Response Authentication ===
+                        const nonce = crypto.randomUUID()
+                        const expectedResponse = await computeChallenge(code, nonce)
+
+                        // Send challenge
+                        conn.send({ type: 'challenge', nonce })
+
+                        // Wait for response
+                        const response = await new Promise((res, rej) => {
+                            const authTimeout = setTimeout(() => rej(new Error('驗證逾時')), 5000)
+                            conn.on('data', (msg) => {
+                                clearTimeout(authTimeout)
+                                res(msg)
+                            })
+                        })
+
+                        if (response.type !== 'challenge-response' || !arrayEqual(response.hmac, expectedResponse)) {
+                            conn.send({ type: 'auth-failed' })
+                            throw new Error('驗證失敗：對方未通過身份認證')
+                        }
+
+                        // Auth passed — send encrypted data
                         const encrypted = await encryptData(data, code)
-                        conn.send(encrypted)
+                        conn.send({ type: 'data', payload: encrypted })
                     } catch (e) {
-                        console.error('Encryption failed:', e)
-                        conn.send({ error: '加密失敗' })
+                        console.error('Sender auth/encryption failed:', e)
+                        conn.send({ type: 'error', message: e.message || '驗證或加密失敗' })
                     }
 
                     setTimeout(() => {
@@ -120,7 +178,7 @@ export const p2pManager = {
 
     /**
      * Receiver (New Device)
-     * @param {string} code - The 6-digit code entered by user
+     * @param {string} code - The 8-digit code entered by user
      * @returns {Promise<Object>} - The received data
      */
     connectToSender(code) {
@@ -135,36 +193,50 @@ export const p2pManager = {
                 if (connection) connection.close()
                 peer.destroy()
                 reject(new Error('連線逾時，請確認代碼是否正確或已過期'))
-            }, 10000) // 10s to find the peer is enough
+            }, 10000)
 
-            peer.on('open', (id) => {
-
+            peer.on('open', () => {
                 connection = peer.connect(targetPeerId)
 
                 connection.on('open', () => {
-                    // Connected! Waiting for data.
+                    // Connected! Waiting for challenge...
                 })
 
-                connection.on('data', async (payload) => {
-                    if (timeoutId) clearTimeout(timeoutId)
-
+                connection.on('data', async (msg) => {
                     try {
-                        if (payload.error) {
-                            throw new Error(payload.error)
+                        if (msg.type === 'challenge') {
+                            // Respond to challenge
+                            const hmac = await computeChallenge(code, msg.nonce)
+                            connection.send({ type: 'challenge-response', hmac })
+                        } else if (msg.type === 'data') {
+                            // Received encrypted data
+                            if (timeoutId) clearTimeout(timeoutId)
+                            const data = await decryptData(msg.payload, code)
+                            resolve(data)
+                            connection.close()
+                            setTimeout(() => peer.destroy(), 500)
+                        } else if (msg.type === 'auth-failed') {
+                            if (timeoutId) clearTimeout(timeoutId)
+                            reject(new Error('身份驗證失敗，請確認代碼是否正確'))
+                            connection.close()
+                            peer.destroy()
+                        } else if (msg.type === 'error') {
+                            if (timeoutId) clearTimeout(timeoutId)
+                            reject(new Error(msg.message || '傳輸錯誤'))
+                            connection.close()
+                            peer.destroy()
                         }
-                        const data = await decryptData(payload, code)
-                        resolve(data)
                     } catch (e) {
-                        console.error('Decryption failed', e)
-                        reject(new Error('資料解密失敗與驗證錯誤'))
+                        if (timeoutId) clearTimeout(timeoutId)
+                        console.error('Receiver processing failed', e)
+                        reject(new Error('資料解密失敗或驗證錯誤'))
+                        connection.close()
+                        peer.destroy()
                     }
-                    connection.close()
-                    setTimeout(() => peer.destroy(), 500)
                 })
 
                 connection.on('error', (err) => {
                     if (timeoutId) clearTimeout(timeoutId)
-                    // Common error: peer-unavailable
                     if (err.type === 'peer-unavailable') {
                         reject(new Error('找不到來源裝置，請確認代碼是否正確'))
                     } else {
@@ -174,10 +246,10 @@ export const p2pManager = {
             })
 
             peer.on('error', (err) => {
-                // Receiver init error
                 if (timeoutId) clearTimeout(timeoutId)
                 reject(err)
             })
         })
     }
 }
+

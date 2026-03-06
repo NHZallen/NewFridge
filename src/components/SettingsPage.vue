@@ -75,16 +75,16 @@
         <div class="text-muted small mb-3">只有您可以修改自己的名稱，修改後所有裝置會自動同步。</div>
 
         <div class="d-flex flex-column gap-3">
-          <div v-for="member in familySettings.members" :key="member" class="member-row d-flex justify-content-between align-items-center">
+          <div v-for="member in familySettings.members" :key="member.uid || member" class="member-row d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
               <i class="bi bi-person-circle text-secondary fs-4"></i>
               <div>
-                <div class="fw-bold">{{ member }}</div>
-                <div class="badge bg-primary" v-if="member === currentUserName">我</div>
+                <div class="fw-bold">{{ member.displayName || member }}</div>
+                <div class="badge bg-primary" v-if="(member.displayName || member) === currentUserName">我</div>
               </div>
             </div>
 
-            <button v-if="member === currentUserName" class="btn btn-sm btn-light border rounded-pill" @click="$emit('edit-user-name', member)" :aria-label="`編輯 ${member} 的名稱`">
+            <button v-if="(member.displayName || member) === currentUserName" class="btn btn-sm btn-light border rounded-pill" @click="$emit('edit-user-name', member.displayName || member)" :aria-label="`編輯 ${member.displayName || member} 的名稱`">
               <i class="bi bi-pencil"></i>
             </button>
           </div>
@@ -193,7 +193,7 @@
       <div class="card-body">
         <div class="fw-bold mb-2"><i class="bi bi-phone-flip text-primary me-1"></i> 裝置同步與分享</div>
         <div class="text-muted small mb-3">
-          產生 6 位數代碼，在另一台裝置輸入即可快速同步設定。
+          產生 8 位數代碼，在另一台裝置輸入即可快速同步設定。
         </div>
 
         <div class="d-flex gap-2">
